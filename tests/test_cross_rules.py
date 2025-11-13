@@ -18,7 +18,8 @@ class TestCrossRules:
     
     def test_simple_cross_rule_creation(self):
         """Test basic cross rule with numeric schema."""
-        self.rule_group.finalize_rule(1, "[a][b] --> 2,1 --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> 2,1 --> [b][a]", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -29,8 +30,8 @@ class TestCrossRules:
         # Define cross schema variable
         self.rule_group.add_var("SWAP_SCHEMA", "2,1", False)
         
-        # Use variable in cross rule
-        self.rule_group.finalize_rule(1, "[a][b] --> {SWAP_SCHEMA} --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> {SWAP_SCHEMA} --> [b][a]", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -38,7 +39,8 @@ class TestCrossRules:
     
     def test_identity_cross_rule_handling(self):
         """Test that 'identity' keyword is converted to None."""
-        self.rule_group.finalize_rule(1, "[a][b] --> identity --> [a][b]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> identity --> [a][b]", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -48,8 +50,8 @@ class TestCrossRules:
         """Test error handling for undefined cross schema variables."""
         initial_error_count = len(self.mode.errors)
         
-        # Use undefined variable
-        self.rule_group.finalize_rule(1, "[a][b] --> {UNDEFINED_VAR} --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> {UNDEFINED_VAR} --> [b][a]", 1)
         
         # Should add error
         assert len(self.mode.errors) > initial_error_count
@@ -57,7 +59,8 @@ class TestCrossRules:
     
     def test_cross_rule_sub_rule_generation(self):
         """Test that cross rules generate correct sub-rules."""
-        self.rule_group.finalize_rule(1, "[a][b] --> 2,1 --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> 2,1 --> [b][a]", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -74,7 +77,8 @@ class TestCrossRules:
     
     def test_complex_cross_schema(self):
         """Test complex cross schema with more positions."""
-        self.rule_group.finalize_rule(1, "[a][b][c] --> 3,1,2 --> [c][a][b]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b][c] --> 3,1,2 --> [c][a][b]", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -82,8 +86,8 @@ class TestCrossRules:
     
     def test_cross_rule_with_unicode(self):
         """Test cross rules work with Unicode characters."""
-        # Use Unicode characters in the rule
-        self.rule_group.finalize_rule(1, "{UNI_E000}{UNI_E001} --> 2,1 --> {UNI_E001}{UNI_E000}")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("{UNI_E000}{UNI_E001} --> 2,1 --> {UNI_E001}{UNI_E000}", 1)
         
         assert len(self.rule_group.rules) == 1
         rule = self.rule_group.rules[0]
@@ -97,6 +101,13 @@ class TestCrossRules:
 
 class TestCrossRuleIntegration:
     """Test cross rules in real-world scenarios."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.mode = Mode("test_mode")
+        self.mode.errors = []
+        self.rule_group = RuleGroup(self.mode, "test_group")
+        self.rule_group.finalize({})
     
     def test_english_tengwar_cross_rule_detection(self):
         """Test that English Tengwar mode has cross rules after macro expansion."""
@@ -121,7 +132,8 @@ class TestCrossRuleIntegration:
     @pytest.mark.regression
     def test_regression_cross_schema_attribute_missing(self):
         """REGRESSION: Rules should have cross_schema attribute."""
-        self.rule_group.finalize_rule(1, "[a][b] --> 2,1 --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> 2,1 --> [b][a]", 1)
         
         rule = self.rule_group.rules[0]
         assert hasattr(rule, 'cross_schema')
@@ -130,7 +142,8 @@ class TestCrossRuleIntegration:
     @pytest.mark.regression
     def test_regression_identity_not_converted_to_none(self):
         """REGRESSION: 'identity' should be converted to None."""
-        self.rule_group.finalize_rule(1, "[a][b] --> identity --> [a][b]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> identity --> [a][b]", 1)
         
         rule = self.rule_group.rules[0]
         assert rule.cross_schema is None, f"Expected None, got {rule.cross_schema}"
@@ -139,7 +152,8 @@ class TestCrossRuleIntegration:
     def test_regression_variable_not_resolved_in_cross_schema(self):
         """REGRESSION: Variables should be resolved in cross schemas."""
         self.rule_group.add_var("TEST_VAR", "2,1", False)
-        self.rule_group.finalize_rule(1, "[a][b] --> {TEST_VAR} --> [b][a]")
+        # Use _process_code_line to handle parsing like in real usage
+        self.rule_group._process_code_line("[a][b] --> {TEST_VAR} --> [b][a]", 1)
         
         rule = self.rule_group.rules[0]
         assert rule.cross_schema == "2,1", f"Expected '2,1', got {rule.cross_schema}"

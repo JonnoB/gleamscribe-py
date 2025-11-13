@@ -464,6 +464,49 @@ class RuleGroup:
         # Unknown expression
         self.mode.errors.append(Error(code_line.line, f"Cannot understand: {expression}"))
     
+    def convert_unicode_vars(self, line: int, string: str) -> str:
+        """Convert Unicode variables to actual Unicode characters.
+        
+        This is the "last moment of parsing" where {UNI_XXXX} becomes actual characters.
+        Matches Ruby behavior.
+        
+        Args:
+            line: Line number for error reporting
+            string: String with {UNI_XXXX} variables
+            
+        Returns:
+            String with Unicode characters
+        """
+        def replace_unicode(match):
+            hex_code = match.group(1)
+            try:
+                # Validate hex code format
+                if not all(c in '0123456789ABCDEFabcdef' for c in hex_code):
+                    self.mode.errors.append(Error(
+                        line,
+                        f"Invalid Unicode hex code format: {hex_code}"
+                    ))
+                    return match.group(0)
+                
+                # Convert to integer and validate range
+                code_point = int(hex_code, 16)
+                if code_point > 0x10FFFF:  # Unicode limit
+                    self.mode.errors.append(Error(
+                        line,
+                        f"Unicode code point out of range: {hex_code}"
+                    ))
+                    return match.group(0)
+                
+                return chr(code_point)
+            except ValueError:
+                self.mode.errors.append(Error(
+                    line,
+                    f"Invalid Unicode hex code: {hex_code}"
+                ))
+                return match.group(0)
+        
+        return self.UNICODE_VAR_NAME_REGEXP_OUT.sub(replace_unicode, string)
+    
     def finalize_rule(self, line: int, match_exp: str, replacement_exp: str, cross_schema: Optional[str] = None):
         """Create and finalize a rule using the proper Rule pipeline.
         
@@ -478,6 +521,13 @@ class RuleGroup:
         # Apply variable substitutions
         match = self.apply_vars(line, match_exp, True)
         replacement = self.apply_vars(line, replacement_exp, False)
+        
+        if match is None or replacement is None:
+            return  # Failed to resolve variables
+        
+        # Convert Unicode variables to actual characters (last moment of parsing)
+        match = self.convert_unicode_vars(line, match)
+        replacement = self.convert_unicode_vars(line, replacement)
         
         if match is None or replacement is None:
             return  # Failed to resolve variables
@@ -652,11 +702,13 @@ class RuleGroup:
         stack_depth = 0
         had_replacements = True
         
+        error_occurred = False
+        
         while had_replacements:
             had_replacements = False
             
             def replace_var(match):
-                nonlocal had_replacements
+                nonlocal had_replacements, error_occurred
                 vname = match.group(1)
                 v = self.vars.get(vname)
                 
@@ -671,15 +723,15 @@ class RuleGroup:
                                 line, 
                                 f"In expression: {string}: making wrong use of unicode variable: {match.group(0)}. Unicode vars can only be used in source members of a rule or in the definition of another variable."
                             ))
-                            had_replacements = True
-                            return None
+                            error_occurred = True
+                            return match.group(0)  # Return original to avoid empty string
                     else:
                         self.mode.errors.append(Error(
                             line,
                             f"In expression: {string}: failed to evaluate variable: {match.group(0)}."
                         ))
-                        had_replacements = True
-                        return None
+                        error_occurred = True
+                        return match.group(0)  # Return original to avoid empty string
                 else:
                     had_replacements = True
                     return v.value
@@ -687,7 +739,7 @@ class RuleGroup:
             # Apply variable replacement
             ret = self.VAR_NAME_REGEXP.sub(replace_var, ret)
             
-            if ret is None:
+            if error_occurred:
                 return None
             
             stack_depth += 1
@@ -701,38 +753,8 @@ class RuleGroup:
                 ))
                 return None
         
-        # Handle Unicode variable resolution if allowed
-        if allow_unicode_vars:
-            def replace_unicode(match):
-                hex_code = match.group(1)
-                try:
-                    # Validate hex code format
-                    if not all(c in '0123456789ABCDEFabcdef' for c in hex_code):
-                        self.mode.errors.append(Error(
-                            line,
-                            f"Invalid Unicode hex code format: {hex_code}"
-                        ))
-                        return match.group(0)
-                    
-                    # Convert to integer and validate range
-                    code_point = int(hex_code, 16)
-                    if code_point > 0x10FFFF:  # Unicode limit
-                        self.mode.errors.append(Error(
-                            line,
-                            f"Unicode code point out of range: {hex_code}"
-                        ))
-                        return match.group(0)
-                    
-                    return chr(code_point)
-                except ValueError:
-                    self.mode.errors.append(Error(
-                        line,
-                        f"Invalid Unicode hex code: {hex_code}"
-                    ))
-                    return match.group(0)
-            
-            ret = self.UNICODE_VAR_NAME_REGEXP_OUT.sub(replace_unicode, ret)
-        
+        # Unicode variables are kept intact and will be replaced at the last moment of parsing
+        # This matches Ruby behavior exactly
         return ret
     
     def __str__(self) -> str:

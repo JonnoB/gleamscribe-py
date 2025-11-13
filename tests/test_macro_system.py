@@ -187,7 +187,7 @@ class TestMacroSystem:
         assert "test_macro" in self.rule_group.macros
         assert self.rule_group.macros["test_macro"] == macro1
     
-    @pytest.mark.regression  
+    @pytest.mark.regression
     def test_regression_argument_count_mismatch(self):
         """REGRESSION: Should detect macro argument count mismatches."""
         # Create macro expecting 2 arguments
