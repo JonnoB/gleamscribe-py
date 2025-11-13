@@ -113,38 +113,59 @@ class RuleGroup:
         self.vars[var_name] = RuleGroupVar(var_name, value, is_pointer)
     
     def apply_vars(self, line: int, string: str, allow_unicode_vars: bool = False) -> Optional[str]:
-        """Replace all variables in an expression."""
+        """Apply variable substitutions to a string.
+        
+        This mirrors the Ruby implementation's apply_vars method with
+        iterative replacement for nested variables.
+        
+        Args:
+            line: Line number for error reporting
+            string: The string with variables to substitute
+            allow_unicode_vars: Whether to allow unicode variables
+        
+        Returns:
+            Resolved string or None if error
+        """
         ret = string
         stack_depth = 0
         had_replacements = True
         
-        while had_replacements:
+        # Prevent infinite loops
+        max_iterations = 100
+        
+        while had_replacements and stack_depth < max_iterations:
             had_replacements = False
-            ret = re.sub(self.VAR_NAME_REGEXP, lambda match: self._replace_var(match, line, string, allow_unicode_vars, had_replacements), ret)
+            
+            # Find and replace variables
+            def replace_var(match):
+                nonlocal had_replacements
+                cap_var = match.group(0)
+                vname = match.group(1)
+                
+                v = self.vars.get(vname)
+                if not v:
+                    # Check if it's a unicode variable
+                    if self.UNICODE_VAR_NAME_REGEXP_IN.match(vname):
+                        if allow_unicode_vars:
+                            # Keep unicode variable intact for later processing
+                            return cap_var
+                        else:
+                            self.mode.errors.append(Error(line, f"In expression: {string}: making wrong use of unicode variable: {cap_var}. Unicode vars can only be used in source members of a rule or in the definition of another variable."))
+                            return cap_var
+                    else:
+                        self.mode.errors.append(Error(line, f"In expression: {string}: failed to evaluate variable: {cap_var}."))
+                        return cap_var
+                else:
+                    had_replacements = True
+                    return v.value
+            
+            ret = self.VAR_NAME_REGEXP.sub(replace_var, ret)
+            stack_depth += 1
+        
+        if stack_depth >= max_iterations:
+            self.mode.errors.append(Error(line, f"In expression: {string}: variable substitution exceeded maximum iterations - possible circular reference."))
         
         return ret
-    
-    def _replace_var(self, match, line: int, string: str, allow_unicode_vars: bool, had_replacements: bool) -> str:
-        """Replace a single variable."""
-        vname = match.group(1)
-        cap_var = match.group(0)
-        
-        v = self.vars.get(vname)
-        if not v:
-            if self.UNICODE_VAR_NAME_REGEXP_IN.match(vname):
-                # Unicode variable
-                if allow_unicode_vars:
-                    return cap_var
-                else:
-                    self.mode.errors.append(Error(line, f"In expression: {string}: making wrong use of unicode variable: {cap_var}. Unicode vars can only be used in source members of a rule or in the definition of another variable."))
-                    return cap_var
-            else:
-                self.mode.errors.append(Error(line, f"In expression: {string}: failed to evaluate variable: {cap_var}."))
-                return cap_var
-        else:
-            # Count replacements on non-unicode vars
-            had_replacements = True
-            return v.value
     
     def traverse_if_tree(self, root_element: Node, text_procedure, element_procedure):
         """Traverse an if tree structure and build the code blocks.

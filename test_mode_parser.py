@@ -110,13 +110,17 @@ def test_real_mode():
             for name, rg in list(mode.rule_groups.items())[:3]:
                 print(f"  - {name}: {len(rg.vars)} vars, {len(rg.root_code_block.terms)} terms")
                 if rg.vars:
-                    print(f"    Variables: {list(rg.vars.keys())[:3]}")
+                    print(f"    Variables: {list(rg.vars.keys())[:10]}")
+                    # Show a few variable definitions
+                    for var_name in list(rg.vars.keys())[:5]:
+                        var_value = rg.vars[var_name].value
+                        print(f"      {var_name} === {var_value[:50]}...")
                 
                 # Finalize and check rules
                 rg.finalize({})
                 if hasattr(rg, 'rules'):
                     print(f"    Rules: {len(rg.rules)}")
-                    for rule in rg.rules[:3]:
+                    for rule in rg.rules[:5]:
                         print(f"      {rule['source']} --> {rule['target']}")
         else:
             print(f"\nNo rule groups found")
