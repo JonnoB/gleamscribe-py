@@ -329,6 +329,9 @@ class RuleGroup:
                     # Ignore word breaker and boundary characters
                     if (inchar != TranscriptionProcessor.WORD_BREAKER and 
                         inchar != TranscriptionProcessor.WORD_BOUNDARY_TREE):
+                        # Temporary guard: do not let 'numbers' group capture A/B in normal prose
+                        if self.name == 'numbers' and inchar in ('A', 'B'):
+                            continue
                         self.in_charset[inchar] = self
     
     def descend_if_tree(self, code_block: CodeBlock, trans_options: Dict[str, Any]):

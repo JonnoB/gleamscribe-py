@@ -170,8 +170,8 @@ class TranscriptionPostProcessor(TranscriptionPrePostProcessor):
         Returns:
             Final Unicode string
         """
-        # Cleanup the output by removing empty tokens
-        tokens = [tok for tok in tokens if tok != ""]
+        # Cleanup the output by removing empty tokens and structural markers
+        tokens = [tok for tok in tokens if tok != "" and tok != "\\"]
         
         # Apply all operators
         for operator in self.operators:

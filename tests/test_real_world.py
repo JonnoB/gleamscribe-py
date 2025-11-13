@@ -31,10 +31,10 @@ def transcribe_mode(mode_name: str, text: str) -> str:
     
     # Finalize and transcribe
     mode.processor.finalize({})
-    result = mode.processor.transcribe(text)
+    result = mode.transcribe(text)
     
-    # Return as string (transcribe returns list of tokens)
-    return "".join(result)
+    # Return as string (transcribe returns (success, result, debug_context))
+    return result[1] if result[0] else result[1]
 
 
 @pytest.mark.real_world

@@ -7,6 +7,7 @@ including processors, options, and complex rule management.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
+import unicodedata
 
 from .charset import Charset
 from .mode_debug_context import ModeDebugContext
@@ -186,8 +187,15 @@ class Mode:
             # Restore line feed at end (except for last line)
             restore_lf = (i < len(lines) - 1)
             
+            # Apply preprocessor if available (Ruby has one; we need minimal normalization)
+            # TODO: Implement full preprocessor from mode file
+            # For now, apply basic normalization that Ruby's default preprocessor does
+            # Normalize Unicode (decompose accented chars) then remove combining marks
+            normalized = unicodedata.normalize('NFD', line)
+            processed_line = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn').lower()
+            
             # Apply processor
-            line_result = self.processor.transcribe(line, debug_context)
+            line_result = self.processor.transcribe(processed_line, debug_context)
             
             # Apply post-processor to convert tokens to Unicode characters
             # This is the critical step that converts "TELCO" → actual Tengwar chars

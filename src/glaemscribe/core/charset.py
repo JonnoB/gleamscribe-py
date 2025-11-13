@@ -1,7 +1,7 @@
 """Character set definitions for Glaemscribe."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Set
 
 
 @dataclass
@@ -11,6 +11,8 @@ class Charset:
     version: str
     characters: Dict[str, str] = field(default_factory=dict)
     virtual_chars: Dict[str, str] = field(default_factory=dict)
+    sequences: Dict[str, List[str]] = field(default_factory=dict)
+    swaps: Dict[str, Set[str]] = field(default_factory=dict)
     
     def get_character(self, char_name: str) -> str:
         """Get the Unicode character for a given character name."""
@@ -31,3 +33,14 @@ class Charset:
     def resolve_virtual(self, virtual_name: str) -> Optional[str]:
         """Resolve a virtual character to its definition."""
         return self.virtual_chars.get(virtual_name)
+
+    def has_swap_target(self, trigger: str, target: str) -> bool:
+        """Check if there is a swap rule for trigger that targets the given next token."""
+        tgts = self.swaps.get(trigger)
+        return target in tgts if tgts else False
+
+    def add_swap(self, trigger: str, targets: List[str]) -> None:
+        """Add swap targets for a trigger."""
+        if trigger not in self.swaps:
+            self.swaps[trigger] = set()
+        self.swaps[trigger].update(targets)

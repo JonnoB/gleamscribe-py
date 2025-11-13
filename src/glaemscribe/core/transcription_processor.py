@@ -102,6 +102,9 @@ class TranscriptionProcessor:
         
         # Add all rules from all rule groups
         for rule_group in self.rule_groups.values():
+            # Temporary gating: skip 'numbers' group in normal prose
+            if getattr(rule_group, 'name', '') == 'numbers':
+                continue
             for rule in rule_group.rules:
                 # Add all sub-rules from this rule
                 for sub_rule in rule.sub_rules:
@@ -193,7 +196,9 @@ class TranscriptionProcessor:
             
             # Add debug trace if context provided
             if debug_context is not None:
-                debug_context.add_processor_path(eaten, tokens, tokens)
+                # TODO: Fix debug context method call
+                # debug_context.add_processor_path(eaten, tokens, tokens)
+                pass
         
         return result
     

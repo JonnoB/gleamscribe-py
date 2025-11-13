@@ -37,16 +37,70 @@ class VirtualClass:
     triggers: List[str]
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class VirtualChar:
     """Represents a virtual character (composite of other characters)."""
     line: int
-    names: List[str]
-    classes: List[VirtualClass]
-    charset: 'CharsetParser' = field(repr=False)
+    names: List[str] = field(hash=False)
+    classes: List[VirtualClass] = field(hash=False)
+    charset: 'CharsetParser' = field(repr=False, hash=False, compare=False)
     reversed: bool = False
     default: Optional[str] = None
-    lookup_table: Dict[str, Char] = field(default_factory=dict, init=False)
+    lookup_table: Dict[str, Char] = field(default_factory=dict, init=False, hash=False, compare=False)
+    
+    def finalize(self):
+        """Build lookup table for virtual character resolution.
+        
+        Maps trigger character names to result character objects.
+        """
+        self.lookup_table = {}
+        
+        for vc_class in self.classes:
+            result_char_name = vc_class.target
+            trigger_char_names = vc_class.triggers
+            
+            for trigger_char_name in trigger_char_names:
+                if trigger_char_name in self.lookup_table:
+                    # Ruby version would add an error here
+                    continue
+                
+                # Find the result character in the charset
+                result_char = self.charset._get_character_by_name(result_char_name)
+                trigger_char = self.charset._get_character_by_name(trigger_char_name)
+                
+                if result_char is None:
+                    # Ruby version would add an error here
+                    continue
+                elif trigger_char is None:
+                    # Ruby version would add an error here
+                    continue
+                elif isinstance(trigger_char, VirtualChar):
+                    # Ruby version would add an error here - virtual chars can't trigger other virtual chars
+                    continue
+                else:
+                    # Map all names of the trigger character to the result character
+                    for trigger_name in trigger_char.names:
+                        self.lookup_table[trigger_name] = result_char
+    
+    def __getitem__(self, trigger_char_name: str) -> Optional[Char]:
+        """Get the result character for a trigger character name."""
+        return self.lookup_table.get(trigger_char_name)
+    
+    def is_virtual(self) -> bool:
+        """Check if this is a virtual character."""
+        return True
+    
+    def is_sequence(self) -> bool:
+        """Check if this is a sequence character."""
+        return False
+    
+    def get_str(self) -> str:
+        """Get the string representation if virtual char cannot be resolved."""
+        if self.default:
+            default_char = self.charset._get_character_by_name(self.default)
+            if default_char:
+                return default_char.str_value
+        return "?"  # VIRTUAL_CHAR_OUTPUT in Ruby
 
 
 @dataclass
@@ -109,6 +163,10 @@ class CharsetParser:
         # Process character definitions
         for char_element in doc.root_node.gpath("char"):
             self._process_char(char_element)
+        
+        # Process sequence characters (if any)
+        for seq_element in doc.root_node.gpath("sequence"):
+            self._process_sequence(seq_element)
         
         # Process virtual characters
         for virtual_element in doc.root_node.gpath("virtual"):
@@ -204,18 +262,63 @@ class CharsetParser:
         
         # Add to core charset's virtual characters
         for name in names:
-            # For now, store the virtual char definition as a string
-            # In a full implementation, this would be more sophisticated
-            self.charset.virtual_chars[name] = f"VIRTUAL({name})"
+            # Store the actual VirtualChar object for proper resolution
+            self.charset.virtual_chars[name] = virtual_char
     
     def _process_swap(self, swap_element: Node):
         """Process a swap definition."""
-        # TODO: Implement swap processing if needed
-        # For now, swaps are not used in basic transcription
-        pass
+        # Ruby format: \swap TRIGGER TARGET1 TARGET2 ...
+        # We'll also accept targets coming from text children if args are sparse
+        if not swap_element.args:
+            return
+        trigger = swap_element.args[0]
+        targets: List[str] = []
+        # Collect from inline args
+        if len(swap_element.args) > 1:
+            targets.extend([t for t in swap_element.args[1:] if t and t != '?'])
+        # Collect from text children
+        for child in swap_element.children:
+            if child.is_text() and child.args and child.args[0]:
+                parts = [p for p in child.args[0].split() if p and p != '?']
+                targets.extend(parts)
+        if not targets:
+            return
+        # Register into core charset
+        self.charset.add_swap(trigger, targets)
+
+    def _process_sequence(self, seq_element: Node):
+        """Process a sequence character definition.
+        Expected patterns (tolerant):
+          \sequence NAME TOKEN TOKEN ...
+          or tokens listed in text children.
+        Stores in charset.sequences[NAME] = [TOKENS ...]
+        """
+        if not seq_element.args:
+            return
+        name = seq_element.args[0]
+        tokens: List[str] = []
+        # From inline args
+        if len(seq_element.args) > 1:
+            tokens.extend([t for t in seq_element.args[1:] if t and t != '?'])
+        # From text children
+        for child in seq_element.children:
+            if child.is_text() and child.args and child.args[0]:
+                parts = [p for p in child.args[0].split() if p and p != '?']
+                tokens.extend(parts)
+        if not tokens:
+            return
+        self.charset.sequences[name] = tokens
+    
+    def _get_character_by_name(self, name: str) -> Optional[Char]:
+        """Get a character object by name."""
+        for char in self.chars:
+            if name in char.names:
+                return char
+        return None
     
     def _finalize(self):
         """Finalize the charset by building lookup tables."""
-        # In the Ruby version, this builds lookup tables for virtual characters
-        # For our simplified version, we'll keep it basic
-        pass
+        # Finalize all virtual characters to build their lookup tables
+        for char in self.chars:
+            if isinstance(char, VirtualChar):
+                char.finalize()

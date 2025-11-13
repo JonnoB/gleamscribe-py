@@ -342,5 +342,17 @@ class ModeParser:
     def _extract_postprocessor(self, doc: Document):
         """Extract postprocessor rules."""
         postprocessor_nodes = doc.root_node.gpath("postprocessor")
-        # TODO: Implement postprocessor parsing
-        # For now, we'll skip this as it's complex
+        if not postprocessor_nodes:
+            return
+        
+        postprocessor_node = postprocessor_nodes[0]
+        
+        # Find all operator directives in postprocessor
+        for operator_element in postprocessor_node.children:
+            if operator_element.name == "resolve_virtuals":
+                # Add the resolve virtuals operator
+                from ..core.post_processor.resolve_virtuals import ResolveVirtualsPostProcessorOperator
+                resolve_virtuals_op = ResolveVirtualsPostProcessorOperator(self.mode)
+                self.mode.post_processor.operators.append(resolve_virtuals_op)
+            else:
+                self.errors.append(Error(operator_element.line, f"Unknown postprocessor operator: {operator_element.name}"))

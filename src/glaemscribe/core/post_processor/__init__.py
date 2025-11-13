@@ -15,6 +15,7 @@ from .base import (
 )
 
 from .charset_resolver import CharsetResolverPostProcessor
+from .resolve_virtuals import ResolveVirtualsPostProcessorOperator
 
 __all__ = [
     'PrePostProcessorOperator',
@@ -24,5 +25,6 @@ __all__ = [
     'TranscriptionPreProcessor',
     'TranscriptionPostProcessor',
     'CharsetResolverPostProcessor',
+    'ResolveVirtualsPostProcessorOperator',
     'UNKNOWN_CHAR_OUTPUT'
 ]
