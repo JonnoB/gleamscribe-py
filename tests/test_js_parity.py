@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""
+Test Python implementation against JavaScript reference outputs.
+
+Since JS outputs font-specific encoding and Python outputs Unicode PUA,
+we validate structural equivalence rather than exact string matching.
+"""
+
+import json
+import subprocess
+from pathlib import Path
+import pytest
+from src.glaemscribe.parsers.mode_parser import ModeParser
+
+
+def get_js_reference(mode: str, text: str) -> dict:
+    """Get reference transcription from JavaScript implementation."""
+    js_file = Path('/home/jonno/glaemscribe/transcribe_test.js')
+    
+    if not js_file.exists():
+        pytest.skip("JavaScript reference implementation not available")
+    
+    test_case = {'mode': mode, 'input': text}
+    
+    result = subprocess.run(
+        ['node', str(js_file), json.dumps(test_case)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        cwd='/home/jonno/glaemscribe'
+    )
+    
+    if result.returncode != 0:
+        pytest.skip(f"JS transcription failed: {result.stderr}")
+    
+    return json.loads(result.stdout)
+
+
+def transcribe_python(mode: str, text: str) -> str:
+    """Transcribe using Python implementation."""
+    parser = ModeParser()
+    mode_file = f"resources/glaemresources/modes/{mode}.glaem"
+    mode_obj = parser.parse(mode_file)
+    mode_obj.processor.finalize({})
+    success, result, _ = mode_obj.transcribe(text)
+    
+    if not success:
+        raise ValueError(f"Python transcription failed: {result}")
+    
+    return result
+
+
+def analyze_transcription(text: str) -> dict:
+    """Analyze transcription structure."""
+    return {
+        'length': len(text),
+        'has_spaces': ' ' in text,
+        'space_count': text.count(' '),
+        'is_empty': len(text.strip()) == 0,
+        'char_types': {
+            'spaces': sum(1 for c in text if c == ' '),
+            'unicode_pua': sum(1 for c in text if 0xE000 <= ord(c) <= 0xF8FF),
+            'ascii': sum(1 for c in text if ord(c) < 128),
+            'other': sum(1 for c in text if ord(c) >= 128 and not (0xE000 <= ord(c) <= 0xF8FF))
+        }
+    }
+
+
+# Test cases
+TEST_CASES = [
+    {
+        'mode': 'quenya-tengwar-classical',
+        'input': 'Ai ! laurië lantar lassi súrinen ,',
+        'description': 'Quenya phrase - Namárië opening',
+        'expected_structure': {
+            'min_length': 30,
+            'has_spaces': True,
+            'min_space_count': 5
+        }
+    },
+    {
+        'mode': 'quenya-tengwar-classical',
+        'input': 'Elen síla lúmenn omentielvo',
+        'description': 'Quenya greeting',
+        'expected_structure': {
+            'min_length': 25,
+            'has_spaces': True,
+            'min_space_count': 3
+        }
+    },
+    {
+        'mode': 'quenya-tengwar-classical',
+        'input': 'aiya',
+        'description': 'Simple word',
+        'expected_structure': {
+            'min_length': 4,
+            'has_spaces': False,
+            'min_space_count': 0
+        }
+    },
+]
+
+
+@pytest.mark.parametrize("test_case", TEST_CASES)
+def test_structural_parity_with_js(test_case):
+    """Test that Python output has same structure as JS output."""
+    
+    # Get both outputs
+    js_output = get_js_reference(test_case['mode'], test_case['input'])
+    py_output = transcribe_python(test_case['mode'], test_case['input'])
+    
+    # Analyze both
+    js_analysis = analyze_transcription(js_output['result'])
+    py_analysis = analyze_transcription(py_output)
+    
+    # Validate structure is similar (lengths may differ due to encoding)
+    # For short strings, allow absolute difference; for longer, use percentage
+    length_diff = abs(js_analysis['length'] - py_analysis['length'])
+    if js_analysis['length'] < 10:
+        # For very short strings, allow up to 3 character difference
+        assert length_diff <= 3, (
+            f"Length difference too large for short string: JS={js_analysis['length']}, Python={py_analysis['length']}"
+        )
+    else:
+        # For longer strings, allow up to 20% difference
+        length_diff_pct = length_diff / js_analysis['length'] * 100
+        assert length_diff_pct < 20, (
+            f"Length difference too large: JS={js_analysis['length']}, Python={py_analysis['length']} ({length_diff_pct:.1f}%)"
+        )
+    
+    # Space count should match exactly (structural equivalence)
+    assert js_analysis['space_count'] == py_analysis['space_count'], (
+        f"Space count mismatch: JS={js_analysis['space_count']}, Python={py_analysis['space_count']}"
+    )
+    
+    # Python should output Unicode PUA characters
+    assert py_analysis['char_types']['unicode_pua'] > 0, (
+        "Python should output Unicode PUA characters"
+    )
+    
+    # JS outputs ASCII font codes
+    assert js_analysis['char_types']['ascii'] > 0, (
+        "JS should output ASCII font codes"
+    )
+
+
+@pytest.mark.parametrize("test_case", TEST_CASES)
+def test_expected_structure(test_case):
+    """Test that Python output meets expected structural requirements."""
+    
+    py_output = transcribe_python(test_case['mode'], test_case['input'])
+    analysis = analyze_transcription(py_output)
+    
+    expected = test_case['expected_structure']
+    
+    # Check length
+    assert analysis['length'] >= expected['min_length'], (
+        f"Output too short: {analysis['length']} < {expected['min_length']}"
+    )
+    
+    # Check spaces
+    assert analysis['has_spaces'] == expected['has_spaces'], (
+        f"Space presence mismatch: expected {expected['has_spaces']}"
+    )
+    
+    assert analysis['space_count'] >= expected['min_space_count'], (
+        f"Not enough spaces: {analysis['space_count']} < {expected['min_space_count']}"
+    )
+    
+    # Check we're producing Unicode
+    assert analysis['char_types']['unicode_pua'] > 0, (
+        "Should produce Unicode PUA characters"
+    )
+
+
+def test_token_sequence_validation():
+    """Test that token sequences are correct by checking processor output."""
+    from src.glaemscribe.core.mode_debug_context import ModeDebugContext
+    
+    parser = ModeParser()
+    mode = parser.parse("resources/glaemresources/modes/quenya-tengwar-classical.glaem")
+    mode.processor.finalize({})
+    
+    text = "ai"
+    debug = ModeDebugContext()
+    success, result, debug = mode.transcribe(text)
+    
+    # Check we got tokens
+    assert len(debug.processor_output) > 0, "Should produce tokens"
+    
+    # Filter out empty and structural tokens
+    tokens = [t for t in debug.processor_output if t and t != '\\' and not t.startswith('*')]
+    
+    # For "ai" we expect TELCO and tehta tokens
+    assert 'TELCO' in tokens, "Should have TELCO for vowels"
+    assert any('TEHTA' in t for t in tokens), "Should have tehta tokens"
+    
+    # Check result is Unicode
+    assert all(ord(c) >= 0xE000 or c in ' \n' or ord(c) < 128 for c in result), (
+        "Result should be Unicode PUA or basic ASCII"
+    )
+
+
+def test_unicode_normalization():
+    """Test that accented characters are handled correctly."""
+    parser = ModeParser()
+    mode = parser.parse("resources/glaemresources/modes/quenya-tengwar-classical.glaem")
+    mode.processor.finalize({})
+    
+    # Test with accented character
+    text_accented = "laurië"
+    text_plain = "laurie"
+    
+    success1, result1, _ = mode.transcribe(text_accented)
+    success2, result2, _ = mode.transcribe(text_plain)
+    
+    assert success1 and success2, "Both should transcribe successfully"
+    
+    # They should produce the same output (ë normalized to e)
+    assert result1 == result2, (
+        f"Accented and plain should match: {repr(result1)} vs {repr(result2)}"
+    )
+
+
+if __name__ == '__main__':
+    pytest.main([__file__, '-v'])
