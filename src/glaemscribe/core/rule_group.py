@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Union, Any
 import re
 
 from ..parsers.glaeml import Node, Error
+from .rule import Rule
+from .sheaf_chain import SheafChain
 
 
 class RegexPatterns:
@@ -360,7 +362,7 @@ class RuleGroup:
         self.mode.errors.append(Error(code_line.line, f"Cannot understand: {expression}"))
     
     def finalize_rule(self, line: int, match_exp: str, replacement_exp: str, cross_schema: Optional[str] = None):
-        """Create and finalize a rule.
+        """Create and finalize a rule using the proper Rule pipeline.
         
         This matches the Ruby/JS finalize_rule implementation.
         
@@ -377,14 +379,17 @@ class RuleGroup:
         if match is None or replacement is None:
             return  # Failed to resolve variables
         
-        # Create rule
-        rule = {
-            'line': line,
-            'source': match,
-            'target': replacement,
-            'cross_schema': cross_schema
-        }
+        # Create Rule object
+        rule = Rule(line, self)
         
+        # Create sheaf chains
+        rule.src_sheaf_chain = SheafChain(rule, match, True)
+        rule.dst_sheaf_chain = SheafChain(rule, replacement, False)
+        
+        # Finalize the rule to generate sub-rules
+        rule.finalize(cross_schema)
+        
+        # Add the rule to our rules list
         self.rules.append(rule)
     
     def _process_code_block(self, code_block: CodeBlock, trans_options: Dict[str, Any]):
