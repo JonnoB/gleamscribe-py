@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
 
 from .charset import Charset
+from .mode_debug_context import ModeDebugContext
 
 
 @dataclass
@@ -143,6 +144,60 @@ class Mode:
     def add_option(self, option: Option):
         """Add an option to the mode."""
         self.options[option.name] = option
+    
+    def transcribe(self, content: str, charset: Optional[str] = None, debug_context: Optional[ModeDebugContext] = None) -> tuple[bool, str, ModeDebugContext]:
+        """Transcribe content using the mode's processors.
+        
+        This matches the Ruby transcribe method exactly.
+        
+        Args:
+            content: Text to transcribe
+            charset: Optional charset name
+            debug_context: Optional debug context (will be created if not provided)
+        
+        Returns:
+            Tuple of (success, result, debug_context)
+        """
+        # Create debug context if not provided
+        if debug_context is None:
+            debug_context = ModeDebugContext()
+        
+        # Get charset (use default if not specified)
+        target_charset = self.get_charset(charset)
+        if not target_charset:
+            return False, "*** No charset usable for transcription. Failed!", debug_context
+        
+        # TODO: Implement TTS processing if has_tts
+        # TODO: Implement pre/post processing
+        
+        # For now, just use the main processor
+        if not self.processor:
+            return False, "*** No processor available for transcription. Failed!", debug_context
+        
+        # Process content line by line (match Ruby behavior)
+        lines = content.split('\n')
+        results = []
+        
+        for i, line in enumerate(lines):
+            # Restore line feed at end (except for last line)
+            restore_lf = (i < len(lines) - 1)
+            
+            # Apply processor
+            line_result = self.processor.transcribe(line, debug_context)
+            
+            # Convert tokens to string
+            line_str = ' '.join(line_result)
+            
+            # Add debug output
+            debug_context.processor_output.extend(line_result)
+            
+            # Restore line feed if needed
+            if restore_lf:
+                line_str += '\n'
+            
+            results.append(line_str)
+        
+        return True, ''.join(results), debug_context
     
     def get_option_value(self, option_name: str, default: Any = None) -> Any:
         """Get the current value of an option."""

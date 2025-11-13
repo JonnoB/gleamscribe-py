@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any
 from .transcription_tree_node import TranscriptionTreeNode
 from .rule_group import RuleGroup
 from .mode_enhanced import Mode
+from .mode_debug_context import ModeDebugContext
 
 
 class TranscriptionProcessor:
@@ -156,12 +157,12 @@ class TranscriptionProcessor:
         
         return result
     
-    def _transcribe_word(self, word: str, debug_context: Optional[Any] = None) -> List[str]:
+    def _transcribe_word(self, word: str, debug_context: Optional[ModeDebugContext] = None) -> List[str]:
         """Transcribe a single word.
         
         Args:
             word: The word to transcribe
-            debug_context: Optional debug context
+            debug_context: Optional debug context for tracing
         
         Returns:
             List of transcription tokens
@@ -174,25 +175,25 @@ class TranscriptionProcessor:
         
         result = []
         remaining = word_with_boundaries
+        original_word = word_with_boundaries
         
         while remaining:
             # Find longest match
             tokens, consumed = self.transcription_tree.transcribe(remaining)
             
-            # Remove matched characters
+            # Get the actual characters that were matched
+            eaten = original_word[:consumed]
+            original_word = original_word[consumed:]
+            
+            # Remove matched characters from remaining
             remaining = remaining[consumed:]
             
-            # Get the actual characters that were matched
-            eaten = word_with_boundaries[:consumed]
-            word_with_boundaries = word_with_boundaries[consumed:]
+            # Add to result
+            result.extend(tokens)
             
-            # Add tokens to result (skip boundary markers)
-            if tokens != [""]:  # Skip empty boundary matches
-                result.extend(tokens)
-            
-            # Debug tracing
-            if debug_context:
-                debug_context.processor_pathes.append([eaten, tokens, tokens])
+            # Add debug trace if context provided
+            if debug_context is not None:
+                debug_context.add_processor_path(eaten, tokens, tokens)
         
         return result
     
