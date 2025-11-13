@@ -12,7 +12,7 @@ import os
 from .glaeml import Parser, Document, Node, Error
 from ..core.mode_enhanced import Mode, Option
 from ..core.charset import Charset
-from ..core.rule_group import RuleGroup, CodeLine, CodeBlock
+from ..core.rule_group import RuleGroup, CodeLine, CodeBlock, CodeLinesTerm
 from ..core.transcription_processor import TranscriptionProcessor
 
 
@@ -216,8 +216,6 @@ class ModeParser:
     
     def _process_rule_group_content(self, element: Node, rule_group: RuleGroup):
         """Process the content of a rule group, handling conditionals."""
-        # For now, we'll do a simple extraction of rules
-        # In a full implementation, we'd handle the if/else/endif logic
         
         def process_text(parent_block: CodeBlock, text_element: Node):
             """Process text elements containing rules."""
@@ -229,52 +227,27 @@ class ModeParser:
                     if not line or line.startswith('**'):
                         continue  # Skip comments and empty lines
                     
-                    # Check if it's a variable declaration
-                    if rule_group.VAR_DECL_REGEXP.match(line):
-                        match = rule_group.VAR_DECL_REGEXP.match(line)
-                        var_name = match.group(1)
-                        var_value = match.group(2)
-                        rule_group.add_var(var_name, var_value)
+                    # Create a code line and add it
+                    code_line = CodeLine(line, text_element.line)
                     
-                    # Check if it's a rule
-                    elif '-->' in line:
-                        # This is a transcription rule
-                        # For now, just store it as a code line
-                        code_line = CodeLine(line, text_element.line)
-                        parent_block.add_term(code_line)
+                    # Check if we need a CodeLinesTerm
+                    if not parent_block.terms or not hasattr(parent_block.terms[-1], 'is_code_lines'):
+                        code_lines_term = CodeLinesTerm(parent_block)
+                        parent_block.add_term(code_lines_term)
                     
-                    else:
-                        # Just a regular code line
-                        code_line = CodeLine(line, text_element.line)
-                        parent_block.add_term(code_line)
+                    # Add to the last CodeLinesTerm
+                    for term in reversed(parent_block.terms):
+                        if hasattr(term, 'is_code_lines'):
+                            term.code_lines.append(code_line)
+                            break
         
         def process_element(parent_block: CodeBlock, element: Node):
             """Process element nodes."""
-            if element.name == 'if':
-                # Handle conditional blocks
-                self._process_conditional(element, parent_block, rule_group)
-            else:
-                self.errors.append(Error(element.line, f"Unknown directive {element.name}."))
+            # Handle other element types (macros, etc.)
+            self.errors.append(Error(element.line, f"Unknown directive {element.name}."))
         
-        # Process all children
-        for child in element.children:
-            if child.is_text():
-                process_text(rule_group.root_code_block, child)
-            elif child.is_element():
-                process_element(rule_group.root_code_block, child)
-    
-    def _process_conditional(self, if_element: Node, parent_block: CodeBlock, rule_group: RuleGroup):
-        """Process an if conditional block."""
-        # TODO: Implement full conditional processing
-        # For now, just process the content within the if block
-        for child in if_element.children:
-            if child.is_text():
-                lines = child.args[0].split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if line and not line.startswith('**'):
-                        code_line = CodeLine(line, child.line)
-                        parent_block.add_term(code_line)
+        # Use the traverse_if_tree method to handle conditionals
+        rule_group.traverse_if_tree(element, process_text, process_element)
     
     def _extract_postprocessor(self, doc: Document):
         """Extract postprocessor rules."""

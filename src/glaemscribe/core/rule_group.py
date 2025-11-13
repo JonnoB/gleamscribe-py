@@ -29,10 +29,10 @@ class CodeBlock:
     
     def __init__(self):
         """Initialize a code block."""
-        self.terms: List[Union[IfCond, CodeLine, Any]] = []
+        self.terms: List[Union[IfCond, CodeLine, IfTerm, Any]] = []
         self.parent_if_cond: Optional[IfCond] = None
     
-    def add_term(self, term: Union[IfCond, CodeLine, Any]):
+    def add_term(self, term: Union[IfCond, CodeLine, IfTerm, Any]):
         """Add a term to this code block."""
         self.terms.append(term)
 
@@ -49,11 +49,36 @@ class CodeLine:
 
 
 @dataclass
+class CodeLinesTerm:
+    """A term containing multiple code lines."""
+    parent_code_block: CodeBlock
+    code_lines: List[CodeLine] = field(default_factory=list)
+    
+    def is_code_lines(self) -> bool:
+        """Check if this is a code lines term."""
+        return True
+
+
+class IfTerm:
+    """Represents a complete if/elsif/else block."""
+    
+    def __init__(self, parent_code_block: CodeBlock):
+        """Initialize an if term."""
+        self.parent_code_block: CodeBlock = parent_code_block
+        self.conds: List[IfCond] = []
+    
+    @property
+    def offset(self) -> str:
+        """Get offset for debugging."""
+        return "  "
+
+
+@dataclass
 class IfCond:
     """A conditional statement in a rule group."""
     line: int
     expression: str
-    parent_if_term: Optional[IfCond] = None
+    parent_if_term: Optional[IfTerm] = None
     child_code_block: Optional[CodeBlock] = field(default_factory=CodeBlock)
     
     def __post_init__(self):
@@ -121,6 +146,82 @@ class RuleGroup:
             had_replacements = True
             return v.value
     
+    def traverse_if_tree(self, root_element: Node, text_procedure, element_procedure):
+        """Traverse an if tree structure and build the code blocks.
+        
+        This mirrors the Ruby implementation's traverse_if_tree method.
+        
+        Args:
+            root_element: The root element to traverse
+            text_procedure: Function to handle text elements
+            element_procedure: Function to handle element nodes
+        """
+        owner = self  # The rule group
+        root_code_block = self.root_code_block
+        current_parent_code_block = root_code_block
+        
+        for child in root_element.children:
+            if child.is_text():
+                # Handle text elements
+                text_procedure(current_parent_code_block, child)
+            elif child.is_element():
+                # Handle element nodes
+                if child.name == 'if':
+                    cond_attribute = child.args[0] if child.args else ""
+                    if_term = IfTerm(current_parent_code_block)
+                    current_parent_code_block.add_term(if_term)
+                    if_cond = self._create_if_cond_for_if_term(child.line, if_term, cond_attribute)
+                    current_parent_code_block = if_cond.child_code_block
+                    
+                elif child.name == 'elsif':
+                    cond_attribute = child.args[0] if child.args else ""
+                    if_term = current_parent_code_block.parent_if_cond.parent_if_term if current_parent_code_block.parent_if_cond else None
+                    
+                    if not if_term:
+                        self.mode.errors.append(Error(child.line, "'elsif' without a 'if'."))
+                        return
+                    
+                    if_cond = self._create_if_cond_for_if_term(child.line, if_term, cond_attribute)
+                    current_parent_code_block = if_cond.child_code_block
+                    
+                elif child.name == 'else':
+                    if_term = current_parent_code_block.parent_if_cond.parent_if_term if current_parent_code_block.parent_if_cond else None
+                    
+                    if not if_term:
+                        self.mode.errors.append(Error(child.line, "'else' without a 'if'."))
+                        return
+                    
+                    if_cond = self._create_if_cond_for_if_term(child.line, if_term, "true")
+                    current_parent_code_block = if_cond.child_code_block
+                    
+                elif child.name == 'endif':
+                    if_term = current_parent_code_block.parent_if_cond.parent_if_term if current_parent_code_block.parent_if_cond else None
+                    
+                    if not if_term:
+                        self.mode.errors.append(Error(child.line, "'endif' without a 'if'."))
+                        return
+                    
+                    current_parent_code_block = if_term.parent_code_block
+                    
+                else:
+                    # Handle other element types
+                    element_procedure(current_parent_code_block, child)
+    
+    def _create_if_cond_for_if_term(self, line: int, if_term: IfTerm, expression: str) -> IfCond:
+        """Create an IfCond for an IfTerm.
+        
+        Args:
+            line: Line number
+            if_term: The parent if term
+            expression: The condition expression
+        
+        Returns:
+            Created IfCond
+        """
+        if_cond = IfCond(line, expression, if_term)
+        if_term.conds.append(if_cond)
+        return if_cond
+    
     def finalize(self, trans_options: Dict[str, Any]):
         """Finalize the rule group with given transcription options.
         
@@ -133,6 +234,7 @@ class RuleGroup:
         # Only process if we have code blocks (parsed from file)
         if hasattr(self, 'root_code_block') and self.root_code_block.terms:
             self._process_code_block(self.root_code_block, trans_options)
+            self._process_code_block(self.root_code_block, trans_options)
     
     def _process_code_block(self, code_block: CodeBlock, trans_options: Dict[str, Any]):
         """Process a code block and extract rules.
@@ -144,10 +246,13 @@ class RuleGroup:
         for term in code_block.terms:
             if isinstance(term, CodeLine):
                 self._process_code_line(term.expression, term.line)
-            elif hasattr(term, 'child_code_block'):
-                # Handle conditional blocks (if/else/endif)
-                # For now, we'll just process the child block
-                self._process_code_block(term.child_code_block, trans_options)
+            elif isinstance(term, CodeLinesTerm):
+                # Process multiple code lines
+                for code_line in term.code_lines:
+                    self._process_code_line(code_line.expression, code_line.line)
+            elif isinstance(term, IfTerm):
+                # Process conditional blocks
+                self._process_if_term(term, trans_options)
     
     def _process_code_line(self, line: str, line_num: int):
         """Process a single line of code.
@@ -208,6 +313,52 @@ class RuleGroup:
             Resolved expression or None if error
         """
         return self.apply_vars(line_num, expression, allow_unicode_vars=True)
+    
+    def _process_if_term(self, if_term: IfTerm, trans_options: Dict[str, Any]):
+        """Process an if term with its conditions.
+        
+        Args:
+            if_term: The if term to process
+            trans_options: Current transcription options
+        """
+        for if_cond in if_term.conds:
+            # Evaluate the condition
+            if self._evaluate_condition(if_cond.expression, trans_options):
+                # Condition is true - process the code block
+                self._process_code_block(if_cond.child_code_block, trans_options)
+                break  # Only first true condition executes
+    
+    def _evaluate_condition(self, expression: str, trans_options: Dict[str, Any]) -> bool:
+        """Evaluate a conditional expression.
+        
+        Args:
+            expression: The condition expression (e.g., "implicit_a", "option == VALUE")
+            trans_options: Current transcription options
+        
+        Returns:
+            True if condition is satisfied
+        """
+        expression = expression.strip()
+        
+        # Handle simple boolean options
+        if expression in trans_options:
+            return str(trans_options[expression]).lower() == 'true'
+        
+        # Handle equality comparisons
+        if '==' in expression:
+            parts = expression.split('==', 1)
+            if len(parts) == 2:
+                option_name = parts[0].strip()
+                expected_value = parts[1].strip().strip('"\'')
+                
+                actual_value = trans_options.get(option_name, '')
+                return str(actual_value) == expected_value
+        
+        # Handle "true" literal (for else clauses)
+        if expression.lower() == 'true':
+            return True
+        
+        return False
     
     def __str__(self) -> str:
         """String representation of the rule group."""
