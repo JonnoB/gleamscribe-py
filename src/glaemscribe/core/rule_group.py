@@ -171,6 +171,7 @@ class RuleGroup:
         """Traverse an if tree structure and build the code blocks.
         
         This mirrors the Ruby implementation's traverse_if_tree method.
+        All if/elsif/else/endif are siblings, not nested.
         
         Args:
             root_element: The root element to traverse

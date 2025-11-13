@@ -121,28 +121,36 @@ class Parser:
                     parent.children.append(text_node)
     
     def _parse_command(self, line: str, parent: Node, doc: Document):
-        """Parse a command line."""
+        """Parse a command line with proper quoted argument handling."""
         line = line.strip()
         
-        # Extract command name and args
-        if ' ' in line:
-            cmd, rest = line.split(' ', 1)
-            args = rest.split()
+        # Remove the leading backslash
+        cmd_and_args = line[1:]
+        
+        # Parse arguments with quoted string support
+        import shlex
+        try:
+            args = shlex.split(cmd_and_args)
+        except ValueError as e:
+            # Fallback to simple split if shlex fails
+            args = cmd_and_args.split()
+            doc.errors.append(Error(self.line_number, f"Warning: Failed to parse arguments: {e}"))
+        
+        if not args:
+            cmd = "unknown"
+            cmd_args = []
         else:
-            cmd = line
-            args = []
+            cmd = args[0]
+            cmd_args = args[1:] if len(args) > 1 else []
         
-        # Remove backslash from command
-        cmd = cmd[1:]
-        
-        # Create node
-        node_type = NodeType.ELEMENT_BLOCK if cmd in ('beg', 'if') else NodeType.ELEMENT_INLINE
+        # Create node - only 'beg' creates a block, everything else is inline
+        node_type = NodeType.ELEMENT_BLOCK if cmd == 'beg' else NodeType.ELEMENT_INLINE
         node = Node(self.line_number, node_type, cmd)
-        node.args = args
+        node.args = cmd_args
         parent.children.append(node)
         
-        # Handle block commands
-        if cmd in ('beg', 'if'):
+        # Handle block commands - only 'beg' creates a new scope
+        if cmd == 'beg':
             self._parse_block(node, doc)
     
     def _parse_block(self, parent: Node, doc: Document):

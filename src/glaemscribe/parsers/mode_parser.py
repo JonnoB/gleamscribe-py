@@ -218,28 +218,30 @@ class ModeParser:
         """Process the content of a rule group, handling conditionals."""
         
         def process_text(parent_block: CodeBlock, text_element: Node):
-            """Process text elements containing rules."""
-            # Text elements contain the actual rule lines
+            """Process text elements containing rules - matches Ruby implementation."""
+            # Check if the last term is a CodeLinesTerm, if not create one
+            term = None
+            if parent_block.terms:
+                term = parent_block.terms[-1]
+            
+            if not term or not hasattr(term, 'is_code_lines'):
+                term = CodeLinesTerm(parent_block)
+                parent_block.add_term(term)
+            
+            # Process all lines in the text element
             if text_element.args:
                 lines = text_element.args[0].split('\n')
+                lcount = text_element.line
+                
                 for line in lines:
                     line = line.strip()
                     if not line or line.startswith('**'):
                         continue  # Skip comments and empty lines
                     
-                    # Create a code line and add it
-                    code_line = CodeLine(line, text_element.line)
-                    
-                    # Check if we need a CodeLinesTerm
-                    if not parent_block.terms or not hasattr(parent_block.terms[-1], 'is_code_lines'):
-                        code_lines_term = CodeLinesTerm(parent_block)
-                        parent_block.add_term(code_lines_term)
-                    
-                    # Add to the last CodeLinesTerm
-                    for term in reversed(parent_block.terms):
-                        if hasattr(term, 'is_code_lines'):
-                            term.code_lines.append(code_line)
-                            break
+                    # Add the code line to the current CodeLinesTerm
+                    code_line = CodeLine(line, lcount)
+                    term.code_lines.append(code_line)
+                    lcount += 1
         
         def process_element(parent_block: CodeBlock, element: Node):
             """Process element nodes."""
