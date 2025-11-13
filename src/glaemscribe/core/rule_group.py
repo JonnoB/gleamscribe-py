@@ -122,10 +122,92 @@ class RuleGroup:
             return v.value
     
     def finalize(self, trans_options: Dict[str, Any]):
-        """Finalize the rule group with given transcription options."""
-        # TODO: Implement finalization logic
-        # This would evaluate all the conditional logic and build the final rules
-        pass
+        """Finalize the rule group with given transcription options.
+        
+        This processes all the code lines and conditional blocks to build
+        the final set of rules.
+        """
+        if not hasattr(self, 'rules'):
+            self.rules = []
+        
+        # Only process if we have code blocks (parsed from file)
+        if hasattr(self, 'root_code_block') and self.root_code_block.terms:
+            self._process_code_block(self.root_code_block, trans_options)
+    
+    def _process_code_block(self, code_block: CodeBlock, trans_options: Dict[str, Any]):
+        """Process a code block and extract rules.
+        
+        Args:
+            code_block: The code block to process
+            trans_options: Current transcription options
+        """
+        for term in code_block.terms:
+            if isinstance(term, CodeLine):
+                self._process_code_line(term.expression, term.line)
+            elif hasattr(term, 'child_code_block'):
+                # Handle conditional blocks (if/else/endif)
+                # For now, we'll just process the child block
+                self._process_code_block(term.child_code_block, trans_options)
+    
+    def _process_code_line(self, line: str, line_num: int):
+        """Process a single line of code.
+        
+        Args:
+            line: The line to process
+            line_num: Line number for error reporting
+        """
+        line = line.strip()
+        
+        # Skip empty lines and comments
+        if not line or line.startswith('**'):
+            return
+        
+        # Check if it's a variable declaration
+        match = self.VAR_DECL_REGEXP.match(line)
+        if match:
+            var_name = match.group(1)
+            var_value = match.group(2)
+            self.add_var(var_name, var_value)
+            return
+        
+        # Check if it's a pointer variable declaration
+        match = self.POINTER_VAR_DECL_REGEXP.match(line)
+        if match:
+            var_name = match.group(1)
+            var_value = match.group(2)
+            self.add_var(var_name, var_value, is_pointer=True)
+            return
+        
+        # Check if it's a transcription rule
+        match = self.RULE_REGEXP.match(line)
+        if match:
+            source = match.group(1).strip()
+            target = match.group(2).strip()
+            
+            # Apply variable substitution to both source and target
+            resolved_source = self._resolve_variables(source, line_num)
+            resolved_target = self._resolve_variables(target, line_num)
+            
+            if resolved_source and resolved_target:
+                rule = {
+                    'source': resolved_source,
+                    'target': resolved_target,
+                    'line': line_num
+                }
+                self.rules.append(rule)
+            return
+    
+    def _resolve_variables(self, expression: str, line_num: int) -> Optional[str]:
+        """Resolve variables in an expression.
+        
+        Args:
+            expression: The expression with variables
+            line_num: Line number for error reporting
+        
+        Returns:
+            Resolved expression or None if error
+        """
+        return self.apply_vars(line_num, expression, allow_unicode_vars=True)
     
     def __str__(self) -> str:
         """String representation of the rule group."""

@@ -13,6 +13,7 @@ from .glaeml import Parser, Document, Node, Error
 from ..core.mode_enhanced import Mode, Option
 from ..core.charset import Charset
 from ..core.rule_group import RuleGroup, CodeLine, CodeBlock
+from ..core.transcription_processor import TranscriptionProcessor
 
 
 class ModeParser:
@@ -189,6 +190,9 @@ class ModeParser:
         
         processor_node = processor_nodes[0]
         
+        # Create the transcription processor
+        self.mode.processor = TranscriptionProcessor(self.mode)
+        
         # Find rules blocks within processor
         rules_nodes = processor_node.gpath("rules")
         
@@ -199,10 +203,13 @@ class ModeParser:
             rule_group_name = rules_element.args[0]
             rule_group = RuleGroup(self.mode, rule_group_name)
             
-            # Store rule group in mode (we'll need to add this to the Mode class)
+            # Store rule group in mode
             if not hasattr(self.mode, 'rule_groups'):
                 self.mode.rule_groups = {}
             self.mode.rule_groups[rule_group_name] = rule_group
+            
+            # Add to processor
+            self.mode.processor.add_rule_group(rule_group_name, rule_group)
             
             # Process the rules in this group
             self._process_rule_group_content(rules_element, rule_group)

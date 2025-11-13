@@ -81,9 +81,10 @@ class TranscriptionProcessor:
         
         # Add all rules from all rule groups
         for rule_group in self.rule_groups.values():
-            # TODO: Add actual rules once we implement them
-            # For now, we'll add placeholder rules
-            pass
+            for rule in rule_group.rules:
+                # Parse target into tokens (split by spaces for now)
+                target_tokens = rule['target'].split()
+                self.transcription_tree.add_subpath(rule['source'], target_tokens)
     
     def transcribe(self, text: str, debug_context: Optional[Any] = None) -> List[str]:
         """Transcribe text using the rule tree.

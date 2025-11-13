@@ -18,8 +18,15 @@ def test_simple_processor():
     rule_group = RuleGroup(mode, "test_rules")
     
     # Add some variables
-    rule_group.add_var("A", "a")
-    rule_group.add_var("B", "b")
+    rule_group.add_var("A", "CHAR_A")
+    rule_group.add_var("B", "CHAR_B")
+    
+    # Add some manual rules to test
+    rule_group.rules = [
+        {'source': 'a', 'target': 'TENGWA_A', 'line': 1},
+        {'source': 'b', 'target': 'TENGWA_B', 'line': 2},
+        {'source': 'ab', 'target': 'TENGWA_AB', 'line': 3},
+    ]
     
     # Add the rule group to processor
     processor.add_rule_group("test_rules", rule_group)
@@ -30,10 +37,20 @@ def test_simple_processor():
     print("Simple processor test:")
     print(f"Processor: {processor}")
     print(f"Rule groups: {list(processor.rule_groups.keys())}")
+    print(f"Rules in group: {len(rule_group.rules)}")
     
-    # Test transcription (will return unknown since tree is empty)
-    result = processor.transcribe("test")
-    print(f"'test' -> {result}")
+    # Test transcription
+    result = processor.transcribe("a")
+    print(f"'a' -> {result}")
+    
+    result = processor.transcribe("b")
+    print(f"'b' -> {result}")
+    
+    result = processor.transcribe("ab")
+    print(f"'ab' -> {result}")
+    
+    result = processor.transcribe("abc")
+    print(f"'abc' -> {result}")
     
     print("✓ Basic processor test passed!")
     return True

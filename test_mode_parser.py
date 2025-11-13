@@ -111,8 +111,21 @@ def test_real_mode():
                 print(f"  - {name}: {len(rg.vars)} vars, {len(rg.root_code_block.terms)} terms")
                 if rg.vars:
                     print(f"    Variables: {list(rg.vars.keys())[:3]}")
+                
+                # Finalize and check rules
+                rg.finalize({})
+                if hasattr(rg, 'rules'):
+                    print(f"    Rules: {len(rg.rules)}")
+                    for rule in rg.rules[:3]:
+                        print(f"      {rule['source']} --> {rule['target']}")
         else:
             print(f"\nNo rule groups found")
+        
+        # Test transcription if processor exists
+        if hasattr(mode, 'processor') and mode.processor:
+            mode.processor.finalize({})
+            test_result = mode.processor.transcribe("hello")
+            print(f"\nTest transcription 'hello': {test_result[:5]}...")
         
         return len(parser.errors) == 0
         
