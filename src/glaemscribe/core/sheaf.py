@@ -48,11 +48,11 @@ class Sheaf:
     
     def is_src(self) -> bool:
         """Check if this is a source sheaf."""
-        return self.sheaf_chain.is_src()
+        return self.sheaf_chain.is_src
     
     def is_dst(self) -> bool:
         """Check if this is a destination sheaf."""
-        return self.sheaf_chain.is_dst()
+        return self.sheaf_chain.is_dst
     
     def __str__(self) -> str:
         """String representation of the sheaf."""

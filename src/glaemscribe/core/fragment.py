@@ -5,10 +5,17 @@ equivalences like h(a|ä)(i|ï) into combinations.
 """
 
 from __future__ import annotations
-from typing import List, Optional, Any
 import re
+from typing import List, Optional, Any
 
 from ..parsers.glaeml import Error
+
+# Unicode variable pattern - matches {UNI_XXXX}
+UNICODE_VAR_NAME_REGEXP_OUT = re.compile(r'\{UNI_([0-9A-F]+)\}')
+
+# Word boundary patterns
+WORD_BOUNDARY_LANG = '_'
+WORD_BOUNDARY_TREE = '\u0000'
 
 
 class Fragment:
@@ -76,14 +83,38 @@ class Fragment:
     def _finalize_fragment_leaf(self, leaf: str) -> str:
         """Process a leaf token.
         
+        This matches Ruby's finalize_fragment_leaf method exactly.
+        Unicode variables are converted to actual characters for source fragments.
+        
         Args:
             leaf: Leaf token to process
             
         Returns:
-            Processed leaf token
+            Processed leaf token with Unicode variables converted
         """
-        # For now, just return the leaf as-is
-        # TODO: Handle variable substitution if needed
+        if self.sheaf.is_src():
+            # Replace {UNI_XXXX} by its value to allow any unicode char to be found
+            # in the transcription tree (matches Ruby behavior exactly)
+            def replace_unicode(match):
+                hex_code = match.group(1)
+                try:
+                    # Convert hex to Unicode character
+                    unicode_char = chr(int(hex_code, 16))
+                    # Special case: replace underscore with word boundary
+                    if unicode_char == '_':
+                        return '\u0001'
+                    return unicode_char
+                except ValueError:
+                    # Invalid hex code - return original
+                    return match.group(0)
+            
+            leaf = UNICODE_VAR_NAME_REGEXP_OUT.sub(replace_unicode, leaf)
+            
+            # Replace '_' (word boundary) by '\u0000' to allow the real 
+            # underscore to be used in the transcription tree
+            # (Do it after replacing the uni_xxx vars because they have underscores inside)
+            leaf = leaf.replace('_', WORD_BOUNDARY_TREE)
+        
         return leaf
     
     def _validate_destination(self, equivalences: List[List[List[str]]]):
