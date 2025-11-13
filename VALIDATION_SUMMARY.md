@@ -84,14 +84,24 @@ The Python implementation is **production-ready** with:
 ## How to Run Validation
 
 ```bash
-# Run all tests
+# Run all tests (no Node.js required - uses saved reference outputs)
 uv run pytest
 
 # Run JavaScript parity tests specifically
 uv run pytest tests/test_js_parity.py -v
+```
 
-# Generate new reference transcriptions
+### Regenerating Reference Outputs (Optional)
+
+The JS parity tests use **pre-generated reference outputs** saved in the test file itself, so **Node.js is not required** to run the tests.
+
+To regenerate reference outputs (only needed if JS implementation changes):
+
+```bash
+# Requires Node.js and the glaemscribe repo at /home/jonno/glaemscribe
 uv run python generate_reference_transcriptions.py
+
+# Then manually copy the outputs into tests/test_js_parity.py
 ```
 
 ## Conclusion
