@@ -30,6 +30,7 @@ class Rule:
         self.mode = rule_group.mode
         self.sub_rules: List[SubRule] = []
         self.errors: List[str] = []
+        self.cross_schema: Optional[str] = None  # Store cross schema
         
         # These will be set by finalize_rule
         self.src_sheaf_chain: Optional[SheafChain] = None
@@ -41,6 +42,8 @@ class Rule:
         Args:
             cross_schema: Optional cross schema for rule processing
         """
+        # Store the cross schema
+        self.cross_schema = cross_schema
         if self.errors:
             # Add errors to mode
             for error in self.errors:

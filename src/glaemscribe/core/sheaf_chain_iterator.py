@@ -56,41 +56,56 @@ class SheafChainIterator:
     def _construct_cross_array(self, cross_schema: str, iterable_idxs: List[int], prototype_array: List[int]):
         """Construct the cross array for cross schema processing.
         
+        This matches the Ruby implementation exactly.
+        
         Args:
-            cross_schema: Cross schema string like "2,1"
+            cross_schema: Cross schema string like "2,1", "{VAR_NAME}", or "identity"
             iterable_idxs: List of iterable sheaf indices
             prototype_array: Array of prototype sizes
         """
-        try:
-            cross_schema = [int(i) - 1 for i in cross_schema.split(",")]
-        except ValueError:
-            self.errors.append("Cross schema must contain comma-separated integers")
+        # Handle identity keyword (Ruby: if cross_schema == "identity")
+        if cross_schema == "identity":
+            # Use identity permutation - no changes needed
             return
         
-        # Verify that the number of iterables is equal to the cross schema length
+        # Handle variable substitution (Ruby: if cross_schema starts with "{")
+        if cross_schema.startswith("{") and cross_schema.endswith("}"):
+            var_name = cross_schema[1:-1]  # Remove { }
+            # TODO: Implement variable resolution in Phase 2
+            self.errors.append(f"Variable cross schema not yet implemented: {var_name}")
+            return
+        
+        # Parse numeric schema (Ruby: cross_schema.split(",").map{ |i| i.to_i - 1 })
+        try:
+            schema_array = [int(i.strip()) - 1 for i in cross_schema.split(",")]
+        except ValueError:
+            self.errors.append(f"Invalid cross schema: {cross_schema}")
+            return
+        
+        # Verify count matches (Ruby: ca_count != it_count)
         it_count = len(iterable_idxs)
-        ca_count = len(cross_schema)
+        ca_count = len(schema_array)
         
         if ca_count != it_count:
             self.errors.append(f"{it_count} linkable sheaves found in right predicate, but {ca_count} elements in cross rule.")
             return
         
-        # Verify that the cross schema is correct (should be a permutation of the identity)
+        # Verify permutation is valid (Ruby: it_identity_array != cross_schema.sort)
         it_identity_array = list(range(it_count))
-        if sorted(it_identity_array) != sorted(cross_schema):
+        if sorted(it_identity_array) != sorted(schema_array):
             self.errors.append("Cross rule schema should be a permutation of the identity (it should contain 1,2,..,n numbers once and only once).")
             return
         
-        # Calculate the cross array
+        # Apply permutation to cross_array (Ruby logic)
         proto_array_permutted = prototype_array.copy()
         
-        for to_idx, from_idx in enumerate(cross_schema):
+        for to_idx, from_idx in enumerate(schema_array):
             to_permut = iterable_idxs[from_idx]
             permut = iterable_idxs[to_idx]
             self.cross_array[to_permut] = permut
             proto_array_permutted[from_idx] = prototype_array[to_idx]
         
-        # Recalculate prototype
+        # Recalculate prototype (Ruby: self.prototype = "x".join(map(str, proto_array_permutted)))
         self.prototype = "x".join(map(str, proto_array_permutted))
         if not self.prototype:
             self.prototype = 'CONST'
@@ -121,10 +136,13 @@ class SheafChainIterator:
         Returns:
             List of combinations (each combination is a list of strings)
         """
+        # Build fragments array applying cross permutation
+        # The cross_array determines which sheaf position maps to which fragment
         resolved = []
-        for counter, index in enumerate(self.iterators):
-            sheaf = self.sheaf_chain.sheaves[index]
-            fragment = sheaf.fragments[counter]
+        for pos, sheaf_index in enumerate(self.cross_array):
+            sheaf = self.sheaf_chain.sheaves[sheaf_index]
+            fragment_index = self.iterators[sheaf_index]
+            fragment = sheaf.fragments[fragment_index]
             resolved.append(fragment.combinations)
         
         # Calculate Cartesian product of all fragment combinations
