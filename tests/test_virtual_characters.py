@@ -12,10 +12,9 @@ from src.glaemscribe.parsers.charset_parser import CharsetParser
 from src.glaemscribe.parsers.mode_parser import ModeParser
 
 
-def test_charset_has_virtual_characters():
+def test_charset_has_virtual_characters(tengwar_ds_sindarin_charset):
     """Test that charset parser loads virtual character definitions."""
-    parser = CharsetParser()
-    charset = parser.parse("resources/glaemresources/charsets/tengwar_ds_sindarin.cst")
+    charset = tengwar_ds_sindarin_charset
     
     # Check that charset was loaded
     assert charset is not None
@@ -55,11 +54,9 @@ def test_mode_loads_virtual_character_operator():
     print("✓ resolve_virtuals operator loaded successfully")
 
 
-def test_virtual_character_resolution_basic():
+def test_virtual_character_resolution_basic(quenya_classical_mode):
     """Test basic virtual character resolution."""
-    parser = ModeParser()
-    mode = parser.parse("resources/glaemresources/modes/quenya-tengwar-classical.glaem")
-    mode.processor.finalize({})
+    mode = quenya_classical_mode
     
     # Simple test case - just a vowel that should use virtual character resolution
     text = "a"

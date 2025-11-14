@@ -1,31 +1,25 @@
 """Integration tests for end-to-end functionality."""
 
 import pytest
-from src.glaemscribe.parsers.mode_parser import ModeParser
 
 
 class TestModeLoading:
     """Test complete mode loading and finalization."""
     
-    def test_english_tengwar_mode_loading(self):
+    def test_english_tengwar_mode_loading(self, english_tengwar_mode):
         """Test English Tengwar mode loads without critical errors."""
-        parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/english-tengwar-espeak.glaem")
+        mode = english_tengwar_mode
         
         assert mode is not None
         assert mode.name == "english-tengwar-espeak"
         assert hasattr(mode, 'processor')
         
-        # Should finalize without crashing
-        mode.processor.finalize({})
-        
         # Should have rule groups
         assert len(mode.processor.rule_groups) > 0
     
-    def test_raw_tengwar_mode_loading(self):
+    def test_raw_tengwar_mode_loading(self, mode_parser):
         """Test raw Tengwar mode loads and can transcribe."""
-        parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/raw-tengwar.glaem")
+        mode = mode_parser.parse("resources/glaemresources/modes/raw-tengwar.glaem")
         
         assert mode is not None
         assert mode.name == "raw-tengwar"
@@ -37,10 +31,9 @@ class TestModeLoading:
         total_rules = sum(len(rg.rules) for rg in mode.processor.rule_groups.values())
         assert total_rules > 0
     
-    def test_mode_with_unicode_charset(self):
+    def test_mode_with_unicode_charset(self, mode_parser):
         """Test mode loading with Unicode charset support."""
-        parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/raw-tengwar.glaem")
+        mode = mode_parser.parse("resources/glaemresources/modes/raw-tengwar.glaem")
         
         if mode:
             mode.processor.finalize({})
@@ -60,23 +53,19 @@ class TestTranscription:
     """Test end-to-end transcription."""
     
     @pytest.mark.known_issue
-    def test_english_tengwar_basic_transcription(self):
+    def test_english_tengwar_basic_transcription(self, english_tengwar_mode):
         """KNOWN ISSUE: Basic English transcription should work."""
-        parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/english-tengwar-espeak.glaem")
-        
-        if mode:
-            mode.processor.finalize({})
+        mode = english_tengwar_mode
             
-            # Try basic transcription
-            try:
-                result = mode.processor.transcribe("test")
-                # TODO: Should get actual Tengwar output
-                # For now, just test it doesn't crash
-                assert isinstance(result, str)
-            except Exception as e:
-                # Known issue - transcription may fail due to missing charset or other issues
-                pytest.skip(f"Transcription failed with known issue: {e}")
+        # Try basic transcription
+        try:
+            result = mode.transcribe("test")
+            # TODO: Should get actual Tengwar output
+            # For now, just test it doesn't crash
+            assert isinstance(result, str)
+        except Exception as e:
+            # Known issue - transcription may fail due to missing charset or other issues
+            pytest.skip(f"Transcription failed with known issue: {e}")
     
     def test_simple_rule_transcription(self):
         """Test transcription with a simple custom mode."""

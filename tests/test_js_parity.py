@@ -55,12 +55,19 @@ def get_js_reference(mode: str, text: str) -> dict:
     }
 
 
-def transcribe_python(mode: str, text: str) -> str:
-    """Transcribe using Python implementation."""
-    parser = ModeParser()
-    mode_file = f"resources/glaemresources/modes/{mode}.glaem"
-    mode_obj = parser.parse(mode_file)
-    mode_obj.processor.finalize({})
+# Cache for parsed modes
+_mode_cache = {}
+
+def get_python_transcription(mode: str, text: str) -> str:
+    """Get transcription from Python implementation."""
+    if mode not in _mode_cache:
+        parser = ModeParser()
+        mode_file = f"resources/glaemresources/modes/{mode}.glaem"
+        mode_obj = parser.parse(mode_file)
+        mode_obj.processor.finalize({})
+        _mode_cache[mode] = mode_obj
+    
+    mode_obj = _mode_cache[mode]
     success, result, _ = mode_obj.transcribe(text)
     
     if not success:
