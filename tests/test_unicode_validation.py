@@ -67,11 +67,10 @@ class TestTengwarValidator:
         self.tengwar_validator = TengwarValidator()
         self.mode_parser = ModeParser()
     
-    def test_valid_quenya_transcription(self):
+    def test_valid_quenya_transcription(self, quenya_classical_mode):
         """Test validation of actual Quenya transcription."""
-        # Load mode and transcribe
-        mode = self.mode_parser.parse("resources/glaemresources/modes/quenya-tengwar-classical.glaem")
-        mode.processor.finalize({})
+        # Use pre-loaded mode
+        mode = quenya_classical_mode
         
         success, result, _ = mode.transcribe("aiya")
         

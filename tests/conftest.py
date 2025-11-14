@@ -10,6 +10,8 @@ Performance impact: 60s test suite → ~5s (90% reduction)
 import pytest
 from src.glaemscribe.parsers.mode_parser import ModeParser
 from src.glaemscribe.parsers.charset_parser import CharsetParser
+from src.glaemscribe.validation.unicode_validator import UnicodeValidator
+from src.glaemscribe.validation.tengwar_validator import TengwarValidator
 
 
 @pytest.fixture(scope="session")
@@ -102,3 +104,15 @@ def cirth_moria_charset(charset_parser):
 def cirth_woodland_charset(charset_parser):
     """Pre-parsed Cirth Woodland charset."""
     return charset_parser.parse('resources/glaemresources/charsets/cirth_woodland.cst')
+
+
+@pytest.fixture(scope="session")
+def unicode_validator():
+    """Shared Unicode validator instance."""
+    return UnicodeValidator()
+
+
+@pytest.fixture(scope="session")
+def tengwar_validator():
+    """Shared Tengwar validator instance."""
+    return TengwarValidator()
