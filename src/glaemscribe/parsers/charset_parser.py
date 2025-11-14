@@ -206,7 +206,7 @@ class CharsetParser:
             
             # Add to core charset's character dictionary
             for name in names:
-                self.charset.characters[name] = char.str_value
+                self.charset.characters[name] = char
                 
         except ValueError as e:
             self.errors.append(Error(char_element.line, f"Invalid code point '{char_element.args[0]}': {e}"))
