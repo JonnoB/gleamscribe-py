@@ -68,12 +68,14 @@ renderer.render_to_file(result, "tengwar.png", font_size=32)
 ## 📝 TODO List
 
 ### High Priority
+- [x] **Fix Quenya Tengwar transcription** - Core transcription now works correctly (2025-11-17)
 - [x] **Add font rendering module** to solve "tofu" problem - users need a way to see Tengwar characters without installing fonts manually
   - ✅ **Fixed Unicode mapping**: Switched to FTF/Everson standard for font compatibility
   - ✅ **Implemented**: `src/glaemscribe/render/` with PIL-based rendering
-  - ✅ **Working font**: Eldamar font (120K) fully supports FTF/Everson transcriptions
-  - ✅ **Usage examples**: `demo_font_rendering.py` shows working implementation
+  - ✅ **Working font**: FreeMonoTengwar (Unicode) bundled in `src/glaemscribe/fonts/`
+  - ✅ **Usage examples**: `scripts/render_smoke.py` shows working implementation
   - 📝 **Documentation needed**: Add to main API docs
+- [ ] **Implement preprocessor operators** - Parse `\substitute`, `\rxsubstitute` from mode files for full mode compatibility
 - [ ] **Update real-world tests** to use structural validation instead of exact string matching
 - [ ] **Add CLI interface** for command-line transcription (matching original glaemscribe binary)
 - [ ] **Performance profiling** for large text transcription
@@ -101,6 +103,18 @@ Most tests pass; the remaining failures fall into two broad categories:
 These are being tracked and adjusted as the Unicode-focused design stabilises.
 
 ## 🔄 Recently Resolved
+
+### Quenya Tengwar Transcription - Complete Fix (2025-11-17)
+- ✅ Fixed charset parser Unicode PUA detection (codes >= 0xE000)
+- ✅ Implemented RuleGroup.finalize() to build transcription tree properly
+- ✅ Fixed Rule.finalize() iteration logic to match JS implementation
+- ✅ Fixed Fragment parsing to preserve multi-token alternatives
+- ✅ Fixed conditional evaluation to check mode option defaults
+- ✅ Removed incorrect Unicode normalization that stripped meaningful accents
+- ✅ Long vowels (á, é, í, ó, ú) now correctly include ARA carrier
+- ✅ All consonants including VALA (v) now transcribe correctly
+- ✅ Parse tree differences reduced from 1484 to 23 (only minor diphthong/number handling)
+- ✅ "Elen síla lúmenn' omentielvo" now renders perfectly
 
 ### Virtual Character Resolution (2025-11-13)
 - ✅ Implemented 2-pass virtual character resolution algorithm
@@ -132,5 +146,5 @@ These are being tracked and adjusted as the Unicode-focused design stabilises.
 
 ---
 
-*Last Updated: 2025-11-14*  
+*Last Updated: 2025-11-17*  
 *Focus: Active issues and TODOs, not accomplishments*
