@@ -1,45 +1,57 @@
 # Glaemscribe-py
 
-A Python implementation of Glaemscribe for transcribing Tolkien's Elvish languages to Tengwar script using Unicode.
+A Python implementation of Glaemscribe for transcribing Tolkien's Elvish languages (Quenya and Sindarin) to Tengwar script using **Unicode**.
 
-## Overview
+Glaemscribe-py is a Python port of the original [Glaemscribe](https://github.com/BenTalagan/glaemscribe). It focuses on Elvish → Tengwar transcription and outputs Unicode Private Use Area (PUA) characters instead of font-specific codes, so you can use modern Unicode Tengwar fonts.
 
-Glaemscribe-py is a Python port focused on transcribing J.R.R. Tolkien's Elvish languages (Quenya and Sindarin) to Tengwar script. Unlike the original JavaScript Glaemscribe which uses font-specific encodings, this implementation outputs **Unicode characters** (Private Use Area) for greater font independence and modern compatibility.
+## Key features
 
-### Key Features
+- ✅ **Quenya transcription** – Classical Quenya → Tengwar
+- ✅ **Sindarin transcription** – General Sindarin → Tengwar
+- ✅ **Unicode output** – Tengwar in the U+E000–U+F8FF range
+- ✅ **Font flexibility** – Works with several Unicode Tengwar fonts
+- ✅ **PNG rendering helpers** – Example scripts for image output
+- ✅ **Extensible modes** – Same mode/charset architecture as original Glaemscribe
 
-- ✅ **Quenya transcription** - Full support for Classical Quenya to Tengwar
-- ✅ **Sindarin transcription** - Full support for General Sindarin to Tengwar  
-- ✅ **Unicode output** - Uses Unicode PUA characters (U+E000+) compatible with FreeMonoTengwar font
-- ✅ **PNG rendering** - Built-in support for rendering transcriptions to images
-- ✅ **Preprocessing** - Handles diacritics, substitutions, and special characters
-- ✅ **Extensible architecture** - Mode system supports adding new transcription modes
+## Fonts
 
-### What's Different from Original Glaemscribe
+This library outputs Unicode Tengwar (PUA) and can be used with any Unicode Tengwar font.
 
-- **Unicode-first**: Outputs Unicode characters instead of font-specific encodings
-- **Font independence**: Works with any Unicode Tengwar font (tested with FreeMonoTengwar)
-- **Python native**: Pure Python implementation with modern tooling (uv, pytest)
-- **Focused scope**: Currently supports Elvish languages; architecture ready for expansion
+### Bundled fonts (OFL)
 
-## Supported Languages & Modes
+The repository includes a small, curated set of Unicode Tengwar fonts, all under the SIL Open Font License (OFL):
 
-### ✅ Fully Supported
-- **Quenya** - `quenya-tengwar-classical.glaem`
-- **Sindarin** - `sindarin-general.glaem`
+- **FreeMonoTengwar** – baseline font used during development
+- **AlcarinTengwar-Regular** – Unicode Tengwar font
+- **AlcarinTengwar-Bold** – bold companion font
 
-### 🚧 Architecture Ready, Implementation Needed
-The core architecture supports all transcription modes from the original Glaemscribe. The following can be added by adapting their mode files to use Unicode charsets:
+These fonts live under `src/glaemscribe/fonts/` and are suitable for most uses. See the respective licence files alongside the fonts for details.
 
-- **English Tengwar** - Requires eSpeak NG integration for phonemic transcription
-- **Other Tengwar modes** - Mode files exist, need Unicode charset adaptation
-- **Cirth (Runes)** - Mode files exist, need Unicode charset adaptation  
-- **Sarati** - Mode files exist, need Unicode charset adaptation
-- **Other scripts** - Any mode from original Glaemscribe can be ported
+### Other fonts
 
-The main work for adding new modes is:
-1. Converting charset files from font-specific encoding to Unicode
-2. For phonemic modes (like English), integrating required preprocessing tools
+You can also use any other Unicode Tengwar font (for example, Unicode-mapped versions of classic fonts such as Tengwar Annatar). These fonts are **not** bundled with `glaemscribe-py`; you must obtain them from their original sources and follow their licences.
+
+The library itself is font-agnostic: as long as your font supports the Tengwar code points used in the output, it will render correctly.
+
+## Supported languages & modes
+
+### ✅ Implemented
+
+- **Quenya (Classical)** – `quenya-tengwar-classical.glaem`
+- **Sindarin (General)** – `sindarin-general.glaem`
+
+### 🚧 Architecture ready, implementation needed
+
+The core architecture supports all transcription modes from the original Glaemscribe. To add more modes:
+
+- Adapt the mode’s charset to Unicode.
+- For phonemic modes (like English), integrate the required preprocessing tools (e.g. eSpeak NG).
+
+Examples of modes that can be added this way:
+
+- English Tengwar (phonemic, via eSpeak NG)
+- Other Tengwar modes from the original Glaemscribe
+- Cirth (runes), Sarati, and other scripts
 
 ## About Glaemscribe
 
@@ -55,80 +67,66 @@ Glaemscribe is the definitive transcription engine for Tolkien's languages and w
 git clone https://github.com/JonnoB/glaemscribe-py.git
 cd glaemscribe-py
 
-# Install dependencies
+# Install library (runtime only)
+pip install -e .
+
+# For development (tests, formatting, etc.)
 pip install -e .[dev]
-# or with uv
-uv sync
 ```
 
-## Quick Start
+## Quick start
 
-### Basic Transcription
+### Basic transcription (Quenya → Tengwar)
 
 ```python
 from src.glaemscribe.parsers.mode_parser import ModeParser
 
-# Load a Quenya mode
 parser = ModeParser()
 mode = parser.parse('resources/glaemresources/modes/quenya-tengwar-classical.glaem')
 mode.finalize({})
 
-# Transcribe Quenya text
 success, result, debug = mode.transcribe("Elen síla lúmenn' omentielvo")
 if success:
-    print(result)  # Outputs Unicode Tengwar characters (U+E000+ range)
+    print(result)  # Unicode Tengwar (PUA, U+E000+)
 ```
 
-### Rendering to PNG
+### Rendering a line to PNG
 
 ```python
 from PIL import Image, ImageDraw, ImageFont
 
-# After transcribing (see above)
 font = ImageFont.truetype("src/glaemscribe/fonts/FreeMonoTengwar.ttf", 48)
-img = Image.new('RGB', (800, 100), color='white')
+img = Image.new("RGB", (800, 100), color="white")
 draw = ImageDraw.Draw(img)
-draw.text((20, 20), result, font=font, fill='black')
-img.save('output.png')
+draw.text((20, 20), result, font=font, fill="black")
+img.save("output.png")
 ```
 
-### Example: Namárië Poem
+## Advanced usage
+
+Most users do not need this section. These examples are for debugging and advanced integrations.
+
+### Using a specific charset
 
 ```python
-poem = """Ai ! laurië lantar lassi súrinen ,
-yéni únótimë ve rámar aldaron !
-Yéni ve lintë yuldar avánier"""
-
-success, result, debug = mode.transcribe(poem)
-# Result contains full Tengwar transcription with proper diacritics
-```
-
-## Advanced Usage
-
-### Using Different Charsets
-
-```python
-# Load with specific charset
 from src.glaemscribe.parsers.charset_parser import CharsetParser
 
 charset_parser = CharsetParser()
 charset = charset_parser.parse("resources/glaemresources/charsets/tengwar_ds_sindarin.cst")
 
-# Transcribe with charset
-result = mode.transcribe("text", charset)
+success, result, debug = mode.transcribe("text")
 ```
 
-### Debug Mode
+### Debug mode
 
 ```python
 from src.glaemscribe.core.mode_debug_context import ModeDebugContext
 
-debug = ModeDebugContext()
-success, result, debug = mode.transcribe("text")
+debug_ctx = ModeDebugContext()
+success, result, debug_ctx = mode.transcribe("text")
 
-# Access debug information
-print(f"Processor output: {debug.processor_output}")
-print(f"Post-processor output: {debug.postprocessor_output}")
+print("Processor output:", debug_ctx.processor_output)
+print("Post-processor output:", debug_ctx.postprocessor_output)
 ```
 
 ## Testing
