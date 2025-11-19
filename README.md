@@ -62,7 +62,37 @@ pip install -e .[dev]
 
 ## Quick start
 
-### Basic transcription (Quenya → Tengwar)
+### Simple API (recommended)
+
+The easiest way to use Glaemscribe is with the high-level `transcribe()` function:
+
+```python
+from glaemscribe import transcribe, list_modes
+
+# Simple Quenya transcription
+result = transcribe("Elen síla lúmenn' omentielvo", mode="quenya")
+print(result)  # Unicode Tengwar (PUA, U+E000+)
+
+# Sindarin transcription
+result = transcribe("mellon", mode="sindarin")
+print(result)
+
+# List available modes
+modes = list_modes()
+print(modes)  # ['quenya', 'sindarin', 'english', ...]
+```
+
+**Mode aliases** for convenience:
+- `"quenya"` → Quenya Classical Tengwar
+- `"sindarin"` → Sindarin General Use
+- `"sindarin-beleriand"` → Sindarin Beleriand mode
+- `"english"` → English Tengwar (experimental)
+
+See `scripts/simple_usage.py` for more examples.
+
+### Advanced usage (custom modes/options)
+
+For advanced use cases, you can use the lower-level API:
 
 ```python
 from glaemscribe.parsers.mode_parser import ModeParser
@@ -74,19 +104,22 @@ mode.processor.finalize({})
 
 success, result, debug = mode.transcribe("Elen síla lúmenn' omentielvo")
 if success:
-    print(result)  # Unicode Tengwar (PUA, U+E000+)
+    print(result)
 ```
 
-### Rendering a line to PNG
+### Example Scripts
 
-```python
-from PIL import Image, ImageDraw, ImageFont
+The `scripts/` directory contains several useful examples:
 
-font = ImageFont.truetype("src/glaemscribe/fonts/FreeMonoTengwar.ttf", 48)
-img = Image.new("RGB", (800, 100), color="white")
-draw = ImageDraw.Draw(img)
-draw.text((20, 20), result, font=font, fill="black")
-img.save("output.png")
+- **`simple_usage.py`** - Simple API examples for common use cases
+- **`render_text.py`** - Render Tengwar text to PNG images
+- **`validate_unicode.py`** - Validate Unicode transcriptions
+- **`render_poem.py`** - Render the Namárië poem with multiple fonts
+
+Example:
+```bash
+python scripts/simple_usage.py
+python scripts/render_text.py "Elen síla" --mode quenya --output output.png
 ```
 
 ## Contributing
