@@ -8,22 +8,8 @@ Glaemscribe-py is a Python port of the original [Glaemscribe](https://github.com
 
 - **Quenya transcription** – Classical Quenya → Tengwar
 - **Sindarin transcription** – General Sindarin → Tengwar
-- **Font flexibility** – Works with several Unicode Tengwar fonts
+- **Font flexibility** – Works with any Unicode Tengwar TTF or OTF font
 - **PNG rendering helpers** – Example scripts for image output
-
-## Fonts
-
-This library outputs Unicode Tengwar (PUA) and can be used with any Unicode Tengwar font.
-
-### Bundled fonts (OFL)
-
-The repository includes a small, curated set of Unicode Tengwar fonts, all under the SIL Open Font License (OFL):
-
-- **FreeMonoTengwar** – [baseline font](https://freetengwar.sourceforge.net/freemonotengwar.html) used during development
-- **AlcarinTengwar-Regular** – Unicode Tengwar font by [Toshi Omagari](https://github.com/Tosche/Alcarin-Tengwar)
-- **AlcarinTengwar-Bold** – Bold companion font by [Toshi Omagari](https://github.com/Tosche/Alcarin-Tengwar)
-
-These fonts live under `src/glaemscribe/fonts/` and are suitable for most uses. See the respective licence files alongside the fonts for details.
 
 ## Installation
 
@@ -38,6 +24,17 @@ pip install -e .
 # For development (tests, formatting, etc.)
 pip install -e .[dev]
 ```
+
+## Fonts
+
+This library outputs Unicode Tengwar (PUA) and can be used with any Unicode Tengwar font. The repository includes a small, curated set of Unicode Tengwar fonts, all under the SIL Open Font License (OFL):
+
+- **FreeMonoTengwar** – [baseline font](https://freetengwar.sourceforge.net/freemonotengwar.html) used during development
+- **AlcarinTengwar-Regular** – Unicode Tengwar font by [Toshi Omagari](https://github.com/Tosche/Alcarin-Tengwar)
+- **AlcarinTengwar-Bold** – Bold companion font by [Toshi Omagari](https://github.com/Tosche/Alcarin-Tengwar)
+
+These fonts live under `src/glaemscribe/fonts/` and are suitable for most uses. See the respective licence files alongside the fonts for details. There are many Tengwar fonts available online, an example of how to use a custom font is shown in the [Quick start](#quick-start) section.
+
 
 ## Quick start
 
@@ -88,7 +85,7 @@ if success:
 
 ### Using custom fonts
 
-There are many Tengwar fonts available online. If you have a Tengwar TTF font file (like `MyTengwar.ttf`) that you want to use for rendering you can using the `TengwarRenderer` class (programmatic)
+If you have a Tengwar TTF font file (e.g. `MyTengwar.ttf`) that you want to use for rendering you can using the `TengwarRenderer` class.
 
 ```python
 from glaemscribe import transcribe
