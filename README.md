@@ -144,5 +144,3 @@ This port follows the same license as the original Glaemscribe project (GNU Affe
 - **The Tengwar and Quenya community** - For supporting the creation of the original Glaemscribe  
 
 ---
-
-**Original Implementation**: [Glaemscribe repo](https://github.com/BenTalagan/glaemscribe)  
