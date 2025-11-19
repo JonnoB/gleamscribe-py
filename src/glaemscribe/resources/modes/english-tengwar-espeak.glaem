@@ -37,10 +37,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 \raw_mode "raw-tengwar"
 
-\charset  tengwar_freemono true
+\charset  tengwar_freemono    true
 
-\charset  tengwar_freemono    false
-\charset  tengwar_telcontar   false
+\** NOTE: This mode uses Unicode PUA characters (U+E000+) which are compatible
+   with modern Unicode Tengwar fonts like FreeMonoTengwar. **\
 
 \beg options
 

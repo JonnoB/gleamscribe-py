@@ -7,12 +7,14 @@ sanity check for parity between Python and JavaScript implementations.
 
 import pytest
 import json
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.mode_parser import ModeParser
 
 
 def load_canonical_outputs():
     """Load the canonical Unicode outputs."""
-    with open('poem_transcription_canonical.json', 'r', encoding='utf-8') as f:
+    import os
+    fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'poem_transcription_canonical.json')
+    with open(fixture_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -22,9 +24,10 @@ CANONICAL_OUTPUTS = load_canonical_outputs()
 
 def transcribe_mode(mode_name: str, text: str) -> str:
     """Helper function to transcribe text using a specific mode."""
+    from glaemscribe.resources import get_mode_path
     parser = ModeParser()
-    mode_file = f"resources/glaemresources/modes/{mode_name}.glaem"
-    mode = parser.parse(mode_file)
+    mode_file = get_mode_path(mode_name)
+    mode = parser.parse(str(mode_file))
     mode.processor.finalize({})
     success, result, debug = mode.transcribe(text)
     return result if success else result

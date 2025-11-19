@@ -13,8 +13,8 @@ Usage:
 
 import sys
 import argparse
-from src.glaemscribe.validation import UnicodeValidator, TengwarValidator
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.validation import UnicodeValidator, TengwarValidator
+from glaemscribe.parsers.mode_parser import ModeParser
 
 
 def validate_text(text: str, mode_name: str = None) -> bool:
@@ -92,8 +92,9 @@ def transcribe_and_validate(text: str, mode_name: str) -> bool:
     
     try:
         # Load mode
+        from glaemscribe.resources import get_mode_path
         parser = ModeParser()
-        mode = parser.parse(f"resources/glaemresources/modes/{mode_name}.glaem")
+        mode = parser.parse(str(get_mode_path(mode_name)))
         mode.processor.finalize({})
         
         # Transcribe
@@ -137,12 +138,16 @@ def main():
     
     if args.list_modes:
         print("Available modes:")
-        import os
-        mode_dir = "resources/glaemresources/modes"
-        if os.path.exists(mode_dir):
-            for file in os.listdir(mode_dir):
-                if file.endswith('.glaem'):
-                    print(f"  - {file[:-6]}")
+        # List built-in modes
+        modes = [
+            "quenya-tengwar-classical",
+            "sindarin-tengwar-general_use",
+            "sindarin-tengwar-beleriand",
+            "english-tengwar-espeak",
+            "raw-tengwar"
+        ]
+        for mode in modes:
+            print(f"  - {mode}")
         return
     
     if args.mode:

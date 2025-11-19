@@ -20,10 +20,11 @@ _mode_cache = {}
 def get_python_transcription(mode: str, text: str) -> str:
     """Get transcription from Python implementation."""
     if mode not in _mode_cache:
-        from src.glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.resources import get_mode_path
         parser = ModeParser()
-        mode_file = f"resources/glaemresources/modes/{mode}.glaem"
-        mode_obj = parser.parse(mode_file)
+        mode_file = get_mode_path(mode)
+        mode_obj = parser.parse(str(mode_file))
         mode_obj.processor.finalize({})
         _mode_cache[mode] = mode_obj
     

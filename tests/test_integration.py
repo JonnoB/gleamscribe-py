@@ -19,7 +19,8 @@ class TestModeLoading:
     
     def test_raw_tengwar_mode_loading(self, mode_parser):
         """Test raw Tengwar mode loads and can transcribe."""
-        mode = mode_parser.parse("resources/glaemresources/modes/raw-tengwar.glaem")
+        from glaemscribe.resources import get_mode_path
+        mode = mode_parser.parse(str(get_mode_path("raw-tengwar")))
         
         assert mode is not None
         assert mode.name == "raw-tengwar"
@@ -33,7 +34,8 @@ class TestModeLoading:
     
     def test_mode_with_unicode_charset(self, mode_parser):
         """Test mode loading with Unicode charset support."""
-        mode = mode_parser.parse("resources/glaemresources/modes/raw-tengwar.glaem")
+        from glaemscribe.resources import get_mode_path
+        mode = mode_parser.parse(str(get_mode_path("raw-tengwar")))
         
         if mode:
             mode.processor.finalize({})

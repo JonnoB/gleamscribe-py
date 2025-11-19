@@ -1,8 +1,8 @@
 """Test Unicode variable implementation."""
 
 import pytest
-from src.glaemscribe.core.rule_group import RuleGroup
-from src.glaemscribe.core.mode_enhanced import Mode
+from glaemscribe.core.rule_group import RuleGroup
+from glaemscribe.core.mode_enhanced import Mode
 
 
 class TestUnicodeVariables:

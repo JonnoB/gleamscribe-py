@@ -12,7 +12,7 @@ Typical usage:
 """
 
 
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.mode_parser import ModeParser
 import json
 import os
 
@@ -32,8 +32,9 @@ def build_node_dict(node, path: str = ""):
     }
 
 # Parse and finalize the mode
+from glaemscribe.resources import get_mode_path
 parser = ModeParser()
-mode = parser.parse('resources/glaemresources/modes/quenya-tengwar-classical.glaem')
+mode = parser.parse(str(get_mode_path('quenya-tengwar-classical')))
 mode.processor.finalize({})
 
 # Dump the Python transcription tree

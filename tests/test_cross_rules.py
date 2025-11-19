@@ -1,9 +1,9 @@
 """Test cross rule implementation and integration."""
 
 import pytest
-from src.glaemscribe.core.rule_group import RuleGroup
-from src.glaemscribe.core.rule import Rule
-from src.glaemscribe.core.mode_enhanced import Mode
+from glaemscribe.core.rule_group import RuleGroup
+from glaemscribe.core.rule import Rule
+from glaemscribe.core.mode_enhanced import Mode
 
 
 class TestCrossRules:
@@ -87,7 +87,7 @@ class TestCrossRules:
     def test_cross_rule_with_unicode(self):
         """Test cross rules work with Unicode characters."""
         # Add the rule to the code block (proper architecture)
-        from src.glaemscribe.core.rule_group import CodeLine, CodeLinesTerm
+        from glaemscribe.core.rule_group import CodeLine, CodeLinesTerm
         
         # Unicode vars only allowed in source, not target
         code_lines_term = CodeLinesTerm(self.rule_group.root_code_block)
@@ -121,10 +121,11 @@ class TestCrossRuleIntegration:
     
     def test_english_tengwar_cross_rule_detection(self):
         """Test that English Tengwar mode has cross rules after macro expansion."""
-        from src.glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.resources import get_mode_path
         
         parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/english-tengwar-espeak.glaem")
+        mode = parser.parse(str(get_mode_path("english-tengwar-espeak")))
         
         if mode and hasattr(mode, 'processor'):
             mode.processor.finalize({})
@@ -172,10 +173,11 @@ class TestCrossRuleIntegration:
     def test_known_issue_conditional_macro_deployment(self):
         """KNOWN ISSUE: Conditional macro deployment should create cross rules."""
         # This test documents the known issue where conditional macros don't deploy
-        from src.glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.parsers.mode_parser import ModeParser
+        from glaemscribe.resources import get_mode_path
         
         parser = ModeParser()
-        mode = parser.parse("/home/jonno/glaemscribe-py/resources/glaemresources/modes/english-tengwar-espeak.glaem")
+        mode = parser.parse(str(get_mode_path("english-tengwar-espeak")))
         
         if mode and hasattr(mode, 'processor'):
             mode.processor.finalize({})

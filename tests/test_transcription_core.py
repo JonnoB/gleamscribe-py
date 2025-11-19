@@ -10,8 +10,8 @@ This reduces duplicate mode loading and provides better test organization.
 """
 
 import pytest
-from src.glaemscribe.parsers.charset_parser import CharsetParser
-from src.glaemscribe.validation.tengwar_validator import TengwarValidator
+from glaemscribe.parsers.charset_parser import CharsetParser
+from glaemscribe.validation.tengwar_validator import TengwarValidator
 
 
 # Use fixtures from conftest.py - no need to redefine them here
@@ -123,29 +123,15 @@ class TestBasicTranscription:
 class TestCharsetLoading:
     """Test charset loading and character definitions."""
     
-    def test_tengwar_ds_sindarin_charset_loading(self, tengwar_ds_sindarin_charset):
-        """Test Tengwar DS Sindarin charset loads correctly."""
-        charset = tengwar_ds_sindarin_charset
+    def test_tengwar_freemono_charset_loading(self, tengwar_freemono_charset):
+        """Test Tengwar FreeMonoTengwar (Unicode) charset loads correctly."""
+        charset = tengwar_freemono_charset
         
         assert charset is not None
         assert len(charset.characters) > 0
         
         # Check if virtual characters were parsed
         assert hasattr(charset, 'virtual_chars'), "Charset should have virtual_chars attribute"
-    
-    def test_tengwar_guni_sindarin_charset_loading(self, tengwar_guni_sindarin_charset):
-        """Test Tengwar Guni Sindarin charset loads correctly."""
-        charset = tengwar_guni_sindarin_charset
-        
-        assert charset is not None
-        assert len(charset.characters) > 0
-    
-    def test_cirth_daeron_charset_loading(self, cirth_daeron_charset):
-        """Test Cirth Daeron charset loads correctly."""
-        charset = cirth_daeron_charset
-        
-        assert charset is not None
-        assert len(charset.characters) > 0
 
 
 class TestVirtualCharacterResolution:
@@ -175,7 +161,7 @@ class TestVirtualCharacterResolution:
         assert hasattr(mode.post_processor, 'operators')
         
         # Check that resolve_virtuals operator was loaded
-        from src.glaemscribe.core.post_processor.resolve_virtuals import ResolveVirtualsPostProcessorOperator
+        from glaemscribe.core.post_processor.resolve_virtuals import ResolveVirtualsPostProcessorOperator
         has_resolve_virtuals = any(
             isinstance(op, ResolveVirtualsPostProcessorOperator) 
             for op in mode.post_processor.operators

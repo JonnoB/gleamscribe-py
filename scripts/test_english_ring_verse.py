@@ -21,7 +21,7 @@ Typical usage:
 #!/usr/bin/env python3
 """Test English Tengwar transcription with the Ring Verse."""
 
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.mode_parser import ModeParser
 from PIL import Image, ImageDraw, ImageFont
 import os
 
@@ -37,8 +37,9 @@ In the Land of Mordor where the Shadows lie."""
 
 def main():
     print("Loading English Tengwar mode...")
+    from glaemscribe.resources import get_mode_path
     parser = ModeParser()
-    mode = parser.parse('resources/glaemresources/modes/english-tengwar-espeak.glaem')
+    mode = parser.parse(str(get_mode_path('english-tengwar-espeak')))
     
     if not mode:
         print("ERROR: Failed to load mode")

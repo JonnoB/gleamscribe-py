@@ -65,11 +65,12 @@ pip install -e .[dev]
 ### Basic transcription (Quenya → Tengwar)
 
 ```python
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.resources import get_mode_path
 
 parser = ModeParser()
-mode = parser.parse('resources/glaemresources/modes/quenya-tengwar-classical.glaem')
-mode.finalize({})
+mode = parser.parse(str(get_mode_path('quenya-tengwar-classical')))
+mode.processor.finalize({})
 
 success, result, debug = mode.transcribe("Elen síla lúmenn' omentielvo")
 if success:

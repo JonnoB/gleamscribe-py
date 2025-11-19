@@ -28,14 +28,12 @@ if SRC_DIR.exists():
 from glaemscribe.parsers.mode_parser import ModeParser
 
 try:
-    from src.glaemscribe.fonts import extract_bundled_fonts
+    from glaemscribe.fonts import extract_bundled_fonts
 except ImportError:  # pragma: no cover - optional dependency
     extract_bundled_fonts = None
 
 DEFAULT_TEXT = "Elen síla lúmenn' omentielvo"
-DEFAULT_MODE_FILE = Path(
-    "resources/glaemresources/modes/quenya-tengwar-classical.glaem"
-)
+DEFAULT_MODE_NAME = "quenya-tengwar-classical"
 DEFAULT_FONT_SIZE = 72
 DEFAULT_OUTPUT = Path("tengwar_output.png")
 
@@ -59,10 +57,11 @@ def parse_args() -> argparse.Namespace:
         help="Plain text to transliterate to Tengwar"
     )
     parser.add_argument(
-        "--mode-path",
-        type=Path,
-        default=DEFAULT_MODE_FILE,
-        help="Path to a .glaem mode file (default: Quenya Tengwar Classical)"
+        "--mode",
+        "-m",
+        type=str,
+        default=DEFAULT_MODE_NAME,
+        help="Mode name (default: quenya-tengwar-classical) or path to a .glaem file"
     )
     parser.add_argument(
         "--font",
@@ -151,19 +150,29 @@ def resolve_font(font_arg: Path | str | None) -> Path:
     )
 
 
-def load_mode(mode_path: Path) -> object:
+def load_mode(mode_name_or_path: str) -> object:
     """Load and finalize a Glaemscribe mode."""
-    if not mode_path.exists():
-        raise SystemExit(f"Mode file not found: {mode_path}")
+    from glaemscribe.resources import get_mode_path
+    
+    # Check if it's a file path or a mode name
+    if "/" in mode_name_or_path or mode_name_or_path.endswith(".glaem"):
+        # It's a path
+        mode_path = Path(mode_name_or_path)
+        if not mode_path.exists():
+            raise SystemExit(f"Mode file not found: {mode_path}")
+    else:
+        # It's a mode name - use package resources
+        mode_path = get_mode_path(mode_name_or_path)
+    
     parser = ModeParser()
     mode = parser.parse(str(mode_path))
     mode.processor.finalize({})
     return mode
 
 
-def transcribe(text: str, mode_path: Path, charset_name: str | None = None) -> str:
+def transcribe(text: str, mode_name_or_path: str, charset_name: str | None = None) -> str:
     """Transcribe text to Tengwar using the specified mode."""
-    mode = load_mode(mode_path)
+    mode = load_mode(mode_name_or_path)
     success, result, _debug = mode.transcribe(text, charset=charset_name)
     if not success:
         raise SystemExit(f"Glaemscribe transcription failed for text: {text}")
@@ -172,7 +181,7 @@ def transcribe(text: str, mode_path: Path, charset_name: str | None = None) -> s
 
 def render(
     text: str,
-    mode_path: Path,
+    mode_name_or_path: str,
     font_file: Path,
     font_size: int,
     output: Path,
@@ -190,7 +199,7 @@ def render(
         charset_name = None
     
     # Transcribe text
-    glyphs = transcribe(text, mode_path, charset_name)
+    glyphs = transcribe(text, mode_name_or_path, charset_name)
     
     # Load font
     try:
@@ -244,7 +253,7 @@ def render(
     img.save(output)
     print(f"✓ Rendered '{text}' to {output}")
     print(f"  Font: {font_file.name}")
-    print(f"  Mode: {mode_path.name}")
+    print(f"  Mode: {mode_name_or_path}")
     print(f"  Output size: {width}×{height} pixels")
 
 
@@ -253,7 +262,7 @@ def main() -> None:
     font_file = resolve_font(args.font)
     render(
         args.text,
-        args.mode_path,
+        args.mode,
         font_file,
         args.font_size,
         args.output,

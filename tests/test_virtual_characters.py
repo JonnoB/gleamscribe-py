@@ -8,13 +8,13 @@ based on surrounding context.
 """
 
 import pytest
-from src.glaemscribe.parsers.charset_parser import CharsetParser
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.charset_parser import CharsetParser
+from glaemscribe.parsers.mode_parser import ModeParser
 
 
-def test_charset_has_virtual_characters(tengwar_ds_sindarin_charset):
+def test_charset_has_virtual_characters(tengwar_freemono_charset):
     """Test that charset parser loads virtual character definitions."""
-    charset = tengwar_ds_sindarin_charset
+    charset = tengwar_freemono_charset
     
     # Check that charset was loaded
     assert charset is not None
@@ -33,8 +33,9 @@ def test_charset_has_virtual_characters(tengwar_ds_sindarin_charset):
 
 def test_mode_loads_virtual_character_operator():
     """Test that mode parser loads the resolve_virtuals operator."""
+    from glaemscribe.resources import get_mode_path
     parser = ModeParser()
-    mode = parser.parse("resources/glaemresources/modes/quenya-tengwar-classical.glaem")
+    mode = parser.parse(str(get_mode_path("quenya-tengwar-classical")))
     
     # Check that post-processor exists
     assert mode.post_processor is not None
@@ -44,7 +45,7 @@ def test_mode_loads_virtual_character_operator():
     print(f"Post-processor has {len(mode.post_processor.operators)} operators")
     
     # Check that resolve_virtuals operator was loaded
-    from src.glaemscribe.core.post_processor.resolve_virtuals import ResolveVirtualsPostProcessorOperator
+    from glaemscribe.core.post_processor.resolve_virtuals import ResolveVirtualsPostProcessorOperator
     has_resolve_virtuals = any(
         isinstance(op, ResolveVirtualsPostProcessorOperator) 
         for op in mode.post_processor.operators

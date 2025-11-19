@@ -17,11 +17,15 @@ Typical usage example:
 import json
 import os
 from PIL import Image, ImageDraw, ImageFont
-from src.glaemscribe.parsers.mode_parser import ModeParser
+from glaemscribe.parsers.mode_parser import ModeParser
 
 def load_poem_outputs():
     """Load the poem transcription outputs."""
-    with open('poem_transcription_canonical.json', 'r', encoding='utf-8') as f:
+    import os
+    # Load from tests/fixtures relative to repo root
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    fixture_path = os.path.join(repo_root, 'tests', 'fixtures', 'poem_transcription_canonical.json')
+    with open(fixture_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 def _render_with_font(poem_data, font_path, label, base_filename):

@@ -1,9 +1,9 @@
 """Test macro system implementation."""
 
 import pytest
-from src.glaemscribe.core.rule_group import RuleGroup, CodeLinesTerm, CodeLine
-from src.glaemscribe.core.macro import Macro, MacroDeployTerm
-from src.glaemscribe.core.mode_enhanced import Mode
+from glaemscribe.core.rule_group import RuleGroup, CodeLinesTerm, CodeLine
+from glaemscribe.core.macro import Macro, MacroDeployTerm
+from glaemscribe.core.mode_enhanced import Mode
 
 
 class TestMacroSystem:

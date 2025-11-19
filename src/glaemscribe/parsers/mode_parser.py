@@ -170,21 +170,22 @@ class ModeParser:
             charset_name = charset_element.args[0]
             is_default = len(charset_element.args) > 1 and charset_element.args[1] == "true"
             
-            # Load the actual charset file
-            charset_file = f"resources/glaemresources/charsets/{charset_name}.cst"
-            
+            # Load the actual charset file from package resources
             try:
+                from ..resources import get_charset_path
+                charset_file = get_charset_path(charset_name)
+                
                 charset_parser = CharsetParser()
-                loaded_charset = charset_parser.parse(charset_file)
+                loaded_charset = charset_parser.parse(str(charset_file))
                 self.mode.add_charset(loaded_charset, is_default)
                     
             except FileNotFoundError:
                 # Fallback to placeholder if file not found
-                print(f"Warning: Charset file {charset_file} not found, using placeholder")
+                print(f"Warning: Charset file {charset_name}.cst not found, using placeholder")
                 placeholder_charset = Charset(name=charset_name, version="1.0.0")
                 self.mode.add_charset(placeholder_charset, is_default)
             except Exception as e:
-                print(f"Error loading charset {charset_file}: {e}")
+                print(f"Error loading charset {charset_name}: {e}")
                 placeholder_charset = Charset(name=charset_name, version="1.0.0")
                 self.mode.add_charset(placeholder_charset, is_default)
         
