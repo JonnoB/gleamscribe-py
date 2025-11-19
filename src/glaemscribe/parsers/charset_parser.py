@@ -1,8 +1,31 @@
-"""Charset parser for .cst files.
+"""Charset parser for .cst character set definition files.
 
-This parser uses the Glaeml parser to build an AST, then processes it
-to create Charset objects with character definitions, virtual characters,
-and other features.
+This module provides parsing for .cst charset files, which define character
+mappings for specific fonts or encodings. Charsets map character names to
+Unicode code points and define virtual characters for context-dependent
+character selection.
+
+The parser reads .cst files, builds an Abstract Syntax Tree (AST) using the
+Glaeml parser, and processes it to create Charset objects containing:
+- Character definitions (code points and names)
+- Virtual characters (context-dependent character selection)
+- Sequence characters (multi-character sequences)
+- Character swaps (alternative character forms)
+
+Charsets support both:
+- Unicode-native fonts (FreeMonoTengwar) using PUA (U+E000+)
+- Legacy font-specific encodings (DS fonts) with automatic Unicode mapping
+
+Example:
+    >>> from glaemscribe.parsers import CharsetParser
+    >>> from glaemscribe.resources import get_charset_path
+    >>> 
+    >>> parser = CharsetParser()
+    >>> charset = parser.parse(str(get_charset_path('tengwar_freemono')))
+    >>> print(charset.name)
+    'tengwar_freemono'
+    >>> print(len(charset.characters))
+    100+
 """
 
 from __future__ import annotations
@@ -17,7 +40,25 @@ from .tengwar_font_mapping import map_font_code_to_unicode
 
 @dataclass
 class Char:
-    """Represents a single character in a charset."""
+    """Represents a single character in a charset.
+    
+    A Char maps character names to Unicode code points. It handles both
+    Unicode-native charsets (using PUA directly) and legacy font-specific
+    encodings (automatically mapped to Unicode).
+    
+    Attributes:
+        line: Line number in the .cst file where this character is defined
+        code: Character code point (hex value)
+        names: List of names for this character (e.g., ['TINCO', 'T'])
+        str_value: Unicode string representation (set in __post_init__)
+        charset: Reference to parent CharsetParser
+        
+    Examples:
+        >>> char = Char(line=10, code=0xE000, names=['TINCO'], 
+        ...             str_value='', charset=parser)
+        >>> print(char.str_value)  # After __post_init__
+        '\ue000'
+    """
     line: int
     code: int
     names: List[str]
@@ -25,7 +66,12 @@ class Char:
     charset: 'CharsetParser' = field(repr=False)
     
     def __post_init__(self):
-        """Convert code point to Unicode character using font mapping."""
+        """Convert code point to Unicode character using font mapping.
+        
+        Automatically determines whether to use direct Unicode mapping
+        (for Unicode-native charsets like FreeMonoTengwar) or legacy
+        font mapping (for DS fonts). Sets the str_value attribute.
+        """
         # Check if this is a Unicode-native charset (like FreeMonoTengwar)
         # by checking the charset name if available
         is_unicode_charset = False
@@ -43,14 +89,50 @@ class Char:
 
 @dataclass
 class VirtualClass:
-    """A class within a virtual character definition."""
+    """A class within a virtual character definition.
+    
+    Defines a mapping from trigger characters to a target character.
+    Used within VirtualChar to implement context-dependent character selection.
+    
+    Attributes:
+        target: Name of the result character to use
+        triggers: List of trigger character names that activate this mapping
+        
+    Examples:
+        >>> vc = VirtualClass(target='TINCO_EXTENDED', triggers=['TINCO', 'T'])
+    """
     target: str
     triggers: List[str]
 
 
 @dataclass(unsafe_hash=True)
 class VirtualChar:
-    """Represents a virtual character (composite of other characters)."""
+    """Represents a virtual character for context-dependent character selection.
+    
+    Virtual characters are placeholders that resolve to different actual characters
+    based on context (e.g., preceding or following characters). They enable
+    sophisticated transcription rules where the same input produces different
+    outputs depending on surrounding characters.
+    
+    For example, a vowel tehta might use different forms when placed above
+    different consonants.
+    
+    Attributes:
+        line: Line number in the .cst file
+        names: List of names for this virtual character
+        classes: List of VirtualClass mappings (trigger → target)
+        charset: Reference to parent CharsetParser
+        reversed: Whether to check following context instead of preceding
+        default: Default character name if no trigger matches
+        lookup_table: Built during finalize() - maps trigger names to result chars
+        
+    Examples:
+        >>> # Virtual character that selects different forms based on context
+        >>> vc = VirtualChar(line=50, names=['A_TEHTA'], 
+        ...                  classes=[...], charset=parser)
+        >>> vc.finalize()  # Build lookup table
+        >>> result = vc['TINCO']  # Get result for TINCO context
+    """
     line: int
     names: List[str] = field(hash=False)
     classes: List[VirtualClass] = field(hash=False)
@@ -94,19 +176,46 @@ class VirtualChar:
                         self.lookup_table[trigger_name] = result_char
     
     def __getitem__(self, trigger_char_name: str) -> Optional[Char]:
-        """Get the result character for a trigger character name."""
+        """Get the result character for a trigger character name.
+        
+        Args:
+            trigger_char_name: Name of the triggering character
+            
+        Returns:
+            Char object to use, or None if no mapping exists
+            
+        Examples:
+            >>> result_char = virtual_char['TINCO']
+            >>> if result_char:
+            ...     print(result_char.str_value)
+        """
         return self.lookup_table.get(trigger_char_name)
     
     def is_virtual(self) -> bool:
-        """Check if this is a virtual character."""
+        """Check if this is a virtual character.
+        
+        Returns:
+            Always True for VirtualChar objects
+        """
         return True
     
     def is_sequence(self) -> bool:
-        """Check if this is a sequence character."""
+        """Check if this is a sequence character.
+        
+        Returns:
+            Always False for VirtualChar objects (True for SequenceChar)
+        """
         return False
     
     def get_str(self) -> str:
-        """Get the string representation if virtual char cannot be resolved."""
+        """Get the string representation if virtual char cannot be resolved.
+        
+        Returns the default character's string value if defined, otherwise
+        returns '?' as a fallback placeholder.
+        
+        Returns:
+            String representation (default char or '?')
+        """
         if self.default:
             default_char = self.charset._get_character_by_name(self.default)
             if default_char:
@@ -116,7 +225,18 @@ class VirtualChar:
 
 @dataclass
 class Swap:
-    """Represents a character swap operation."""
+    """Represents a character swap operation for alternative character forms.
+    
+    Swaps allow defining alternative forms of characters that can be
+    selected based on context or user preferences.
+    
+    Attributes:
+        line: Line number in the .cst file
+        trigger: Trigger character name
+        target_list: List of alternative character names
+        targets: Dict mapping names to Char objects (built during finalize)
+        lookup_table: Lookup table for swap resolution
+    """
     line: int
     trigger: str
     target_list: List[str]
@@ -125,16 +245,97 @@ class Swap:
 
 
 class CharsetParser:
-    """Parses .cst files into Charset objects."""
+    """Parses .cst charset files into Charset objects.
+    
+    The CharsetParser reads .cst files (Glaemscribe charset definition files)
+    and converts them into Charset objects that map character names to Unicode
+    code points. It handles:
+    
+    - File reading and parsing
+    - Character definitions (code points and names)
+    - Virtual characters (context-dependent selection)
+    - Sequence characters (multi-character sequences)
+    - Character swaps (alternative forms)
+    - Unicode mapping (both native and legacy font encodings)
+    
+    The parser automatically detects whether a charset uses Unicode-native
+    encoding (FreeMonoTengwar) or legacy font-specific encoding (DS fonts)
+    and applies appropriate Unicode mapping.
+    
+    Attributes:
+        charset: The Charset object being constructed (None until parse() is called)
+        chars: List of character objects (Char and VirtualChar)
+        errors: List of parsing errors encountered
+    
+    Examples:
+        >>> # Parse a charset file
+        >>> parser = CharsetParser()
+        >>> charset = parser.parse('charsets/tengwar_freemono.cst')
+        >>> 
+        >>> # Access characters by name
+        >>> tinco = charset.characters.get('TINCO')
+        >>> print(tinco.str_value)
+        '\ue000'
+        
+        >>> # Parse using package resources
+        >>> from glaemscribe.resources import get_charset_path
+        >>> charset_path = get_charset_path('tengwar_freemono')
+        >>> charset = parser.parse(str(charset_path))
+    """
     
     def __init__(self):
-        """Initialize the parser."""
+        """Initialize the charset parser.
+        
+        Creates a new parser instance with empty charset, character list,
+        and error list. The charset will be populated when parse() is called.
+        """
         self.charset: Optional[CoreCharset] = None
         self.chars: List[Union[Char, VirtualChar]] = []
         self.errors: List[Error] = []
     
     def parse(self, file_path: str) -> CoreCharset:
-        """Parse a .cst file and return a Charset object."""
+        """Parse a .cst charset file and return a Charset object.
+        
+        Reads the specified .cst file, parses its contents, and constructs
+        a Charset object with all character definitions, virtual characters,
+        and other features. The charset name is derived from the filename.
+        
+        The parsing process:
+        1. Reads the file content
+        2. Parses with Glaeml parser to build AST
+        3. Extracts character definitions
+        4. Extracts virtual character definitions
+        5. Extracts sequence and swap definitions
+        6. Finalizes virtual characters (builds lookup tables)
+        7. Applies Unicode mapping (native or legacy)
+        
+        Args:
+            file_path: Path to the .cst charset file to parse
+            
+        Returns:
+            Charset object containing all parsed character definitions.
+            Access characters via charset.characters dict.
+            
+        Raises:
+            FileNotFoundError: If the file cannot be read
+            
+        Examples:
+            >>> parser = CharsetParser()
+            >>> charset = parser.parse('charsets/tengwar_freemono.cst')
+            >>> print(charset.name)
+            'tengwar_freemono'
+            >>> print(len(charset.characters))
+            150
+            
+            >>> # Access a character
+            >>> tinco = charset.characters['TINCO']
+            >>> print(tinco.str_value)
+            '\ue000'
+            
+            >>> # Use with package resources
+            >>> from glaemscribe.resources import get_charset_path
+            >>> charset = parser.parse(str(get_charset_path('tengwar_freemono')))
+        """
         self.errors = []
         self.chars = []
         
@@ -188,7 +389,20 @@ class CharsetParser:
             self._process_swap(swap_element)
     
     def _process_char(self, char_element: Node):
-        """Process a single character definition."""
+        """Process a single character definition.
+        
+        Parses a character definition from the AST and creates a Char object.
+        Character definitions specify:
+        - Code point (hex value)
+        - One or more character names
+        
+        The code point is always parsed as hexadecimal (matching Ruby and JS
+        implementations). Unicode mapping is applied automatically based on
+        whether this is a Unicode-native or legacy font charset.
+        
+        Args:
+            char_element: AST node containing character definition
+        """
         if not char_element.args:
             self.errors.append(Error(char_element.line, "Character definition missing code point"))
             return
@@ -223,7 +437,19 @@ class CharsetParser:
             self.errors.append(Error(char_element.line, f"Invalid code point '{char_element.args[0]}': {e}"))
     
     def _process_virtual(self, virtual_element: Node):
-        """Process a virtual character definition."""
+        """Process a virtual character definition.
+        
+        Parses a virtual character definition from the AST and creates a
+        VirtualChar object. Virtual characters define context-dependent
+        character selection with:
+        - Names for the virtual character
+        - Classes mapping trigger characters to target characters
+        - Optional reversed flag (check following instead of preceding context)
+        - Optional default character if no trigger matches
+        
+        Args:
+            virtual_element: AST node containing virtual character definition
+        """
         names = [name.strip() for name in virtual_element.args if name.strip() and name.strip() != '?']
         
         if not names:

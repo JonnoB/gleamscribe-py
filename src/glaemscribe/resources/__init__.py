@@ -1,7 +1,42 @@
-"""Resource management for glaemscribe package.
+"""Resource management for the glaemscribe package.
 
-Provides helpers to load modes and charsets from the installed package,
-using importlib.resources for proper packaging support.
+This module provides helper functions to locate mode and charset files that
+are bundled with the glaemscribe package. It uses importlib.resources to
+ensure proper packaging support, allowing resources to be accessed whether
+the package is installed normally, in editable mode, or as a wheel.
+
+The module handles the abstraction of resource paths, so users don't need
+to know where files are physically located. Resources are accessed by name
+rather than file path.
+
+Available Functions:
+    get_mode_path(name): Get path to a .glaem mode file
+    get_charset_path(name): Get path to a .cst charset file
+
+Available Modes:
+    - quenya-tengwar-classical: Quenya Classical Tengwar
+    - sindarin-tengwar-general_use: Sindarin General Use
+    - sindarin-tengwar-beleriand: Sindarin Beleriand
+    - english-tengwar-espeak: English Tengwar (experimental)
+    - raw-tengwar: Raw Tengwar input
+
+Available Charsets:
+    - tengwar_freemono: Unicode Tengwar (FreeMonoTengwar font)
+
+Examples:
+    >>> from glaemscribe.resources import get_mode_path, get_charset_path
+    >>> from glaemscribe.parsers import ModeParser
+    >>> 
+    >>> # Load a mode
+    >>> mode_path = get_mode_path('quenya-tengwar-classical')
+    >>> parser = ModeParser()
+    >>> mode = parser.parse(str(mode_path))
+    >>> 
+    >>> # Load a charset
+    >>> charset_path = get_charset_path('tengwar_freemono')
+    >>> from glaemscribe.parsers import CharsetParser
+    >>> charset_parser = CharsetParser()
+    >>> charset = charset_parser.parse(str(charset_path))
 """
 
 from importlib.resources import files
@@ -9,17 +44,41 @@ from pathlib import Path
 
 
 def get_mode_path(name: str) -> Path:
-    """Get the path to a mode file by name.
+    """Get the path to a bundled mode file by name.
+    
+    Locates a .glaem mode file from the package's bundled resources using
+    importlib.resources. This works regardless of how the package is installed
+    (normal install, editable mode, or wheel).
+    
+    The mode name should not include the .glaem extension. Available modes
+    include: quenya-tengwar-classical, sindarin-tengwar-general_use,
+    sindarin-tengwar-beleriand, english-tengwar-espeak, and raw-tengwar.
     
     Args:
-        name: Mode name (without .glaem extension)
+        name: Mode name without .glaem extension (e.g., "quenya-tengwar-classical")
         
     Returns:
-        Path object pointing to the mode file
+        Path object pointing to the mode file. Convert to string with str()
+        before passing to parsers.
         
-    Example:
+    Raises:
+        FileNotFoundError: If the mode file doesn't exist (implicitly when
+                          the path is used)
+        
+    Examples:
+        >>> # Get path to Quenya mode
         >>> mode_path = get_mode_path("quenya-tengwar-classical")
-        >>> parser.parse(str(mode_path))
+        >>> print(mode_path)
+        PosixPath('.../glaemscribe/resources/modes/quenya-tengwar-classical.glaem')
+        
+        >>> # Use with ModeParser
+        >>> from glaemscribe.parsers import ModeParser
+        >>> parser = ModeParser()
+        >>> mode = parser.parse(str(mode_path))
+        
+        >>> # Get Sindarin mode
+        >>> mode_path = get_mode_path("sindarin-tengwar-general_use")
+        >>> mode = parser.parse(str(mode_path))
     """
     resource = files("glaemscribe.resources.modes") / f"{name}.glaem"
     # For Python 3.9+, as_file() provides a context manager that returns a Path
@@ -28,17 +87,42 @@ def get_mode_path(name: str) -> Path:
 
 
 def get_charset_path(name: str) -> Path:
-    """Get the path to a charset file by name.
+    """Get the path to a bundled charset file by name.
+    
+    Locates a .cst charset file from the package's bundled resources using
+    importlib.resources. This works regardless of how the package is installed
+    (normal install, editable mode, or wheel).
+    
+    The charset name should not include the .cst extension. Currently, only
+    tengwar_freemono (Unicode Tengwar) is bundled, as the library focuses
+    on Unicode-native output.
     
     Args:
-        name: Charset name (without .cst extension)
+        name: Charset name without .cst extension (e.g., "tengwar_freemono")
         
     Returns:
-        Path object pointing to the charset file
+        Path object pointing to the charset file. Convert to string with str()
+        before passing to parsers.
         
-    Example:
+    Raises:
+        FileNotFoundError: If the charset file doesn't exist (implicitly when
+                          the path is used)
+        
+    Examples:
+        >>> # Get path to Unicode Tengwar charset
         >>> charset_path = get_charset_path("tengwar_freemono")
-        >>> parser.parse(str(charset_path))
+        >>> print(charset_path)
+        PosixPath('.../glaemscribe/resources/charsets/tengwar_freemono.cst')
+        
+        >>> # Use with CharsetParser
+        >>> from glaemscribe.parsers import CharsetParser
+        >>> parser = CharsetParser()
+        >>> charset = parser.parse(str(charset_path))
+        
+        >>> # Access character definitions
+        >>> tinco = charset.characters.get('TINCO')
+        >>> print(tinco.str_value)
+        '\ue000'
     """
     resource = files("glaemscribe.resources.charsets") / f"{name}.cst"
     return Path(str(resource))

@@ -1,5 +1,7 @@
-"""
-Tengwar-specific validation for transcription output.
+"""Tengwar-specific validation for transcription output.
+
+This module provides validation for Tengwar script transcriptions, checking
+character properties, sequences, and structural correctness.
 """
 
 from typing import List, Set, Dict, Optional
@@ -7,9 +9,34 @@ from .unicode_validator import ValidationResult
 
 
 class TengwarValidator:
-    """Validates Tengwar-specific character properties and combinations."""
+    """Validates Tengwar-specific character properties and combinations.
+    
+    This validator checks Tengwar transcriptions for:
+    - Valid character types (consonants, vowels, punctuation, numbers)
+    - Invalid character sequences
+    - Structural issues (missing vowels, misplaced carriers)
+    - Character categorization and analysis
+    
+    The validator uses the Unicode Private Use Area (PUA) mapping to identify
+    and categorize Tengwar characters (U+E000 to U+F8FF).
+    
+    Examples:
+        >>> validator = TengwarValidator()
+        >>> result = validator.validate("\\ue02a\\ue040")  # Tengwar text
+        >>> print(result.is_valid)
+        True
+        
+        >>> analysis = validator.get_character_analysis("\\ue02a\\ue040")
+        >>> print(analysis['consonants'])
+        1
+    """
     
     def __init__(self):
+        """Initialize the Tengwar validator with character definitions.
+        
+        Loads Tengwar character mappings and defines character categories
+        (consonants, vowels, punctuation, numbers) and invalid sequences.
+        """
         # Load Tengwar character definitions from font mapping
         from ..parsers.tengwar_font_mapping import FONT_TO_UNICODE
         
@@ -72,7 +99,24 @@ class TengwarValidator:
         ]
     
     def get_tengwar_type(self, font_name: str) -> str:
-        """Categorize Tengwar character by type."""
+        """Categorize a Tengwar character by its type.
+        
+        Args:
+            font_name: The font name of the Tengwar character (e.g., 'TENWA_TINCO')
+            
+        Returns:
+            Character type as a string: 'consonant', 'vowel', 'punctuation',
+            'number', or 'unknown'
+            
+        Examples:
+            >>> validator = TengwarValidator()
+            >>> validator.get_tengwar_type('TENWA_TINCO')
+            'consonant'
+            >>> validator.get_tengwar_type('TEHTA_A')
+            'vowel'
+            >>> validator.get_tengwar_type('PUNCT_COMMA')
+            'punctuation'
+        """
         if font_name in self.tengwar_consonants:
             return 'consonant'
         elif font_name in self.tengwar_vowels:
@@ -85,7 +129,28 @@ class TengwarValidator:
             return 'unknown'
     
     def validate_character_sequence(self, font_sequence: List[str]) -> List[str]:
-        """Validate sequence of Tengwar characters."""
+        """Validate a sequence of Tengwar characters for invalid combinations.
+        
+        Checks for known invalid character sequences, such as multiple vowel
+        carriers in a row.
+        
+        Args:
+            font_sequence: List of Tengwar font names in order
+            
+        Returns:
+            List of error messages describing invalid sequences found.
+            Empty list if no errors.
+            
+        Examples:
+            >>> validator = TengwarValidator()
+            >>> errors = validator.validate_character_sequence(['A_TEHTA', 'E_TEHTA'])
+            >>> len(errors) > 0  # This is an invalid sequence
+            True
+            
+            >>> errors = validator.validate_character_sequence(['TENWA_TINCO', 'A_TEHTA'])
+            >>> len(errors)  # This is valid
+            0
+        """
         errors = []
         
         for i in range(len(font_sequence) - 1):
@@ -101,7 +166,41 @@ class TengwarValidator:
         return errors
     
     def validate(self, text: str) -> ValidationResult:
-        """Validate Tengwar-specific properties in transcription text."""
+        """Validate Tengwar-specific properties in transcription text.
+        
+        Performs comprehensive validation including:
+        - Basic Unicode validation (via UnicodeValidator)
+        - Character sequence validation
+        - Structural checks (consonants without vowels, misplaced carriers)
+        - Character identification and categorization
+        
+        Args:
+            text: The transcribed Tengwar text to validate (Unicode PUA characters)
+            
+        Returns:
+            ValidationResult object containing:
+            - is_valid: Whether the text passes all validation checks
+            - errors: List of error messages (if any)
+            - warnings: List of warning messages (if any)
+            - character_count: Total character count
+            - tengwar_count: Number of Tengwar characters
+            - punctuation_count: Number of punctuation marks
+            
+        Examples:
+            >>> validator = TengwarValidator()
+            >>> result = validator.validate("\\ue02a\\ue040\\ue016")
+            >>> print(result.is_valid)
+            True
+            >>> print(result.tengwar_count)
+            3
+            
+            >>> # Invalid sequence
+            >>> result = validator.validate("\\ue040\\ue041")  # Two carriers in a row
+            >>> print(result.is_valid)
+            False
+            >>> len(result.errors) > 0
+            True
+        """
         from .unicode_validator import UnicodeValidator
         
         # First do basic Unicode validation
@@ -159,7 +258,38 @@ class TengwarValidator:
         return ValidationResult.success(len(text), unicode_result.tengwar_count, unicode_result.punctuation_count)
     
     def get_character_analysis(self, text: str) -> Dict[str, int]:
-        """Analyze character types in transcription."""
+        """Analyze and count character types in a Tengwar transcription.
+        
+        Categorizes each character in the text and returns counts for each type.
+        Useful for understanding the composition of a transcription.
+        
+        Args:
+            text: The transcribed Tengwar text to analyze
+            
+        Returns:
+            Dictionary with character type counts:
+            - 'consonants': Number of consonant characters
+            - 'vowels': Number of vowel marks/carriers
+            - 'punctuation': Number of punctuation marks
+            - 'numbers': Number of numeric characters
+            - 'unknown': Number of unknown PUA characters
+            - 'non_tengwar': Number of non-Tengwar characters
+            
+        Examples:
+            >>> validator = TengwarValidator()
+            >>> analysis = validator.get_character_analysis("\\ue02a\\ue040\\ue016")
+            >>> print(analysis['consonants'])
+            2
+            >>> print(analysis['vowels'])
+            1
+            
+            >>> # Mixed content
+            >>> analysis = validator.get_character_analysis("\\ue02a test")
+            >>> print(analysis['consonants'])
+            1
+            >>> print(analysis['non_tengwar'])
+            5
+        """
         analysis = {
             'consonants': 0,
             'vowels': 0,

@@ -1,7 +1,25 @@
-"""Mode parser for .glaem files.
+"""Mode parser for .glaem transcription mode files.
 
-This parser uses the Glaeml parser to build an AST, then processes it
-to create Mode objects with rules, options, and processors.
+This module provides parsing for .glaem mode files, which define transcription
+rules for converting text between writing systems (e.g., Quenya → Tengwar).
+
+The parser reads .glaem files, builds an Abstract Syntax Tree (AST) using the
+Glaeml parser, and processes it to create Mode objects containing:
+- Metadata (language, writing system, version, authors)
+- Options (user-configurable settings)
+- Charsets (character set definitions)
+- Preprocessor rules (text normalization)
+- Processor rules (transcription logic)
+- Postprocessor rules (output formatting)
+
+Example:
+    >>> from glaemscribe.parsers import ModeParser
+    >>> from glaemscribe.resources import get_mode_path
+    >>> 
+    >>> parser = ModeParser()
+    >>> mode = parser.parse(str(get_mode_path('quenya-tengwar-classical')))
+    >>> mode.processor.finalize({})
+    >>> success, result, debug = mode.transcribe("aiya")
 """
 
 from __future__ import annotations
@@ -21,15 +39,98 @@ from ..core.pre_processor_operators import SubstitutePreProcessorOperator, RxSub
 
 
 class ModeParser:
-    """Parses .glaem files into Mode objects."""
+    """Parses .glaem mode files into Mode objects.
+    
+    The ModeParser reads .glaem files (Glaemscribe mode definition files) and
+    converts them into Mode objects that can perform transcriptions. It handles:
+    
+    - File reading and parsing
+    - AST processing
+    - Metadata extraction (language, version, authors)
+    - Option definitions (user-configurable settings)
+    - Charset loading (character set definitions)
+    - Rule extraction (preprocessor, processor, postprocessor)
+    - Error collection and reporting
+    
+    The parser automatically loads referenced charset files and validates
+    the mode structure.
+    
+    Attributes:
+        mode: The Mode object being constructed (None until parse() is called)
+        errors: List of parsing errors encountered
+    
+    Examples:
+        >>> # Parse a mode file
+        >>> parser = ModeParser()
+        >>> mode = parser.parse('path/to/mode.glaem')
+        >>> 
+        >>> # Check for errors
+        >>> if mode.errors:
+        ...     print(f"Errors: {mode.errors}")
+        >>> 
+        >>> # Use the mode
+        >>> mode.processor.finalize({})
+        >>> success, result, debug = mode.transcribe("text")
+        
+        >>> # Parse using package resources
+        >>> from glaemscribe.resources import get_mode_path
+        >>> mode_path = get_mode_path('quenya-tengwar-classical')
+        >>> mode = parser.parse(str(mode_path))
+    """
     
     def __init__(self):
-        """Initialize the parser."""
+        """Initialize the mode parser.
+        
+        Creates a new parser instance with empty mode and error list.
+        The mode will be populated when parse() is called.
+        """
         self.mode: Optional[Mode] = None
         self.errors: List[Error] = []
     
     def parse(self, file_path: str) -> Mode:
-        """Parse a .glaem file and return a Mode object."""
+        """Parse a .glaem mode file and return a Mode object.
+        
+        Reads the specified .glaem file, parses its contents, and constructs
+        a Mode object with all rules, options, and charsets. The mode name is
+        derived from the filename.
+        
+        The parsing process:
+        1. Reads the file content
+        2. Parses with Glaeml parser to build AST
+        3. Extracts metadata (version, language, authors, etc.)
+        4. Extracts and validates options
+        5. Loads referenced charset files
+        6. Extracts preprocessor rules
+        7. Extracts processor (transcription) rules
+        8. Extracts postprocessor rules
+        
+        Args:
+            file_path: Path to the .glaem mode file to parse
+            
+        Returns:
+            Mode object containing all parsed rules and metadata.
+            Check mode.errors for any parsing errors.
+            
+        Raises:
+            FileNotFoundError: If the file cannot be read
+            
+        Examples:
+            >>> parser = ModeParser()
+            >>> mode = parser.parse('modes/quenya-tengwar-classical.glaem')
+            >>> print(mode.name)
+            'quenya-tengwar-classical'
+            >>> print(mode.version)
+            '0.9.12'
+            
+            >>> # Check for errors
+            >>> if mode.errors:
+            ...     for error in mode.errors:
+            ...         print(f"Error: {error}")
+            
+            >>> # Use with package resources
+            >>> from glaemscribe.resources import get_mode_path
+            >>> mode = parser.parse(str(get_mode_path('quenya')))
+        """
         self.errors = []
         
         # Extract mode name from filename
@@ -61,7 +162,20 @@ class ModeParser:
         return self.mode
     
     def _process_ast(self, doc: Document):
-        """Process the parsed AST to extract mode information."""
+        """Process the parsed AST to extract mode information.
+        
+        Orchestrates the extraction of all mode components from the parsed
+        document in the correct order:
+        1. Metadata (version, language, etc.)
+        2. Options (user settings)
+        3. Charsets (character definitions)
+        4. Preprocessor (text normalization)
+        5. Processor (transcription rules)
+        6. Postprocessor (output formatting)
+        
+        Args:
+            doc: Parsed Glaeml document containing the AST
+        """
         if not doc.root_node:
             return
         
@@ -84,7 +198,21 @@ class ModeParser:
         self._extract_postprocessor(doc)
     
     def _extract_metadata(self, doc: Document):
-        """Extract basic mode metadata."""
+        """Extract basic mode metadata from the document.
+        
+        Extracts metadata fields including:
+        - version: Mode version number
+        - language: Source language (e.g., "Quenya")
+        - writing: Target writing system (e.g., "Tengwar")
+        - mode: Mode description
+        - authors: Mode authors
+        - world: Setting/world (e.g., "arda")
+        - invention: Creator (e.g., "jrrt")
+        - raw_mode: Reference to raw mode for fallback
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         root = doc.root_node
         
         # Version
@@ -114,7 +242,20 @@ class ModeParser:
             self.mode.raw_mode_name = raw_mode_nodes[0].args[0] if raw_mode_nodes[0].args else None
     
     def _extract_options(self, doc: Document):
-        """Extract mode options."""
+        """Extract mode options (user-configurable settings).
+        
+        Parses option definitions from the mode file. Options allow users
+        to customize transcription behavior (e.g., vowel placement, tehta shapes).
+        
+        Each option has:
+        - name: Option identifier
+        - type: Option type (radio, checkbox, etc.)
+        - default_value: Default setting
+        - values: Available values with descriptions
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         options_nodes = doc.root_node.gpath("options")
         if not options_nodes:
             return
@@ -160,7 +301,23 @@ class ModeParser:
                 self.mode.add_option(option)
     
     def _extract_charsets(self, doc: Document):
-        """Extract charset references and load charset files."""
+        """Extract charset references and load charset files.
+        
+        Parses charset declarations and loads the corresponding .cst files
+        from the package resources. Each charset defines character mappings
+        for a specific font or encoding.
+        
+        Charsets are declared with:
+        - name: Charset identifier (e.g., "tengwar_freemono")
+        - is_default: Whether this is the default charset
+        
+        The parser automatically loads charset files using get_charset_path()
+        and adds them to the mode. If a charset file is not found, a placeholder
+        is created and a warning is issued.
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         charset_nodes = doc.root_node.gpath("charset")
         
         for charset_element in charset_nodes:
@@ -194,7 +351,20 @@ class ModeParser:
             self.mode.warnings.append(Error(0, "No default charset defined!!"))
     
     def _extract_preprocessor(self, doc: Document):
-        """Extract preprocessor operators."""
+        """Extract preprocessor operators for text normalization.
+        
+        The preprocessor handles text preparation before transcription:
+        - downcase: Convert to lowercase
+        - upcase: Convert to uppercase
+        - substitute: Simple text substitutions
+        - rx_substitute: Regex-based substitutions
+        
+        Preprocessor operations run before the main transcription rules
+        and are used for normalization, cleanup, and text preparation.
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         # Create the preprocessor
         self.mode.pre_processor = TranscriptionPreProcessor(self.mode)
         
@@ -245,7 +415,24 @@ class ModeParser:
                         self.mode.pre_processor.operators.append(operator)
     
     def _extract_processor_rules(self, doc: Document):
-        """Extract processor rules."""
+        """Extract processor (transcription) rules.
+        
+        The processor contains the main transcription logic organized into
+        rule groups. Each rule group has:
+        - name: Group identifier
+        - rules: List of transcription rules
+        - conditionals: Optional if/elsif/else blocks
+        
+        Rules define pattern matching and replacement for transcription.
+        They can include:
+        - Simple patterns: "a" → "TEHTA_A"
+        - Complex patterns: "[aeiou]" → vowel mappings
+        - Conditionals: Different rules based on options
+        - Cross-rules: Rules spanning multiple characters
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         # Find the processor block
         processor_nodes = doc.root_node.gpath("processor")
         if not processor_nodes:
@@ -278,7 +465,20 @@ class ModeParser:
             self._process_rule_group_content(rules_element, rule_group)
     
     def _process_rule_group_content(self, element: Node, rule_group: RuleGroup):
-        """Process the content of a rule group, handling conditionals."""
+        """Process the content of a rule group, handling conditionals.
+        
+        Traverses the rule group's AST, processing:
+        - Text nodes: Individual transcription rules
+        - If/elsif/else blocks: Conditional rule application
+        - Nested structures: Complex rule hierarchies
+        
+        This method uses a recursive approach to handle nested conditionals
+        and build the rule group's code block structure.
+        
+        Args:
+            element: AST node containing rule group content
+            rule_group: RuleGroup object to populate with rules
+        """
         
         def process_text(parent_block: CodeBlock, text_element: Node):
             """Process text elements containing rules - matches Ruby implementation."""
@@ -388,7 +588,19 @@ class ModeParser:
         rule_group.traverse_if_tree(element, process_text, process_element)
     
     def _extract_postprocessor(self, doc: Document):
-        """Extract postprocessor rules."""
+        """Extract postprocessor rules for output formatting.
+        
+        The postprocessor handles final output formatting after transcription:
+        - resolve_virtuals: Resolve virtual character placeholders
+        - optimize_diacritics: Optimize diacritic placement
+        - Custom operators: Mode-specific formatting
+        
+        Postprocessor operations run after transcription rules and are used
+        for cleanup, optimization, and final formatting of the output.
+        
+        Args:
+            doc: Parsed Glaeml document
+        """
         postprocessor_nodes = doc.root_node.gpath("postprocessor")
         if not postprocessor_nodes:
             return
