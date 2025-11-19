@@ -12,6 +12,7 @@ This reduces duplicate mode loading and provides better test organization.
 import pytest
 from glaemscribe.parsers.charset_parser import CharsetParser
 from glaemscribe.validation.tengwar_validator import TengwarValidator
+from glaemscribe.resources import get_mode_path
 
 
 # Use fixtures from conftest.py - no need to redefine them here
@@ -58,7 +59,7 @@ class TestModeLoading:
     
     def test_raw_tengwar_mode_loading(self, mode_parser):
         """Test raw Tengwar mode loads and can transcribe."""
-        mode = mode_parser.parse('resources/glaemresources/modes/raw-tengwar.glaem')
+        mode = mode_parser.parse(str(get_mode_path('raw-tengwar')))
         mode.processor.finalize({})
         
         assert mode is not None
@@ -67,7 +68,7 @@ class TestModeLoading:
     
     def test_mode_with_unicode_charset(self, mode_parser):
         """Test mode loading with Unicode charset support."""
-        mode = mode_parser.parse('resources/glaemresources/modes/raw-tengwar.glaem')
+        mode = mode_parser.parse(str(get_mode_path('raw-tengwar')))
         mode.processor.finalize({})
         
         # Unicode variables should be available
