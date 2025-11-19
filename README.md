@@ -25,55 +25,6 @@ The repository includes a small, curated set of Unicode Tengwar fonts, all under
 
 These fonts live under `src/glaemscribe/fonts/` and are suitable for most uses. See the respective licence files alongside the fonts for details.
 
-### Other fonts
-
-You can also use any other Unicode Tengwar font (for example, Unicode-mapped versions of classic fonts such as Tengwar Annatar). These fonts are **not** bundled with `glaemscribe-py`; you must obtain them from their original sources and follow their licences.
-
-### Using custom fonts
-
-If you have a TTF font file (like `MyTengwar.ttf`) that you want to use for rendering:
-
-**Option 1: Using the `TengwarRenderer` class (programmatic)**
-
-```python
-from glaemscribe import transcribe
-from glaemscribe.render import TengwarRenderer
-
-# Transcribe text to Unicode Tengwar
-tengwar_text = transcribe("Elen síla lúmenn' omentielvo", mode="quenya")
-
-# Render with custom font
-renderer = TengwarRenderer(font_path="fonts/MyTengwar.ttf", font_size=48)
-renderer.render_to_file(tengwar_text, "output.png")
-```
-
-**Option 2: Using the `render_text.py` script (command-line)**
-
-```bash
-# Pass the path to your font file
-uv run scripts/render_text.py "Elen síla" --font fonts/MyTengwar.ttf --output output.png
-
-# Or use it with custom modes
-uv run scripts/render_text.py "mellon" --mode sindarin --font fonts/MyTengwar.ttf
-```
-
-## Supported languages & modes
-
-### ✅ Implemented
-
-- **Quenya (Classical)** – `quenya-tengwar-classical.glaem`
-- **Sindarin (General)** – `sindarin-general.glaem`
-
-### 🚧 Architecture ready, implementation needed
-
-The core architecture supports all transcription modes from the original Glaemscribe.
-
-Examples of modes that can be added this way:
-
-- English Tengwar (phonemic, via eSpeak NG)
-- Other Tengwar modes from the original Glaemscribe
-- Cirth (runes), Sarati, and other scripts
-
 ## Installation
 
 ```bash
@@ -135,12 +86,29 @@ if success:
     print(result)
 ```
 
+### Using custom fonts
+
+There are many Tengwar fonts available online. If you have a Tengwar TTF font file (like `MyTengwar.ttf`) that you want to use for rendering you can using the `TengwarRenderer` class (programmatic)
+
+```python
+from glaemscribe import transcribe
+from glaemscribe.render import TengwarRenderer
+
+# Transcribe text to Unicode Tengwar
+tengwar_text = transcribe("Elen síla lúmenn' omentielvo", mode="quenya")
+
+# Render with custom font
+renderer = TengwarRenderer(font_path="fonts/MyTengwar.ttf", font_size=48)
+renderer.render_to_file(tengwar_text, "output.png")
+```
+
+
 ### Example Scripts
 
 The `scripts/` directory contains several useful examples:
 
 - **`simple_usage.py`** - Simple API examples for common use cases
-- **`render_text.py`** - Render Tengwar text to PNG images
+- **`render_text.py`** - Render Tengwar text to PNG images, also accepts custom fonts
 - **`validate_unicode.py`** - Validate Unicode transcriptions
 - **`render_poem.py`** - Render the Namárië poem with multiple fonts
 
@@ -159,13 +127,15 @@ Contributions are welcome! When contributing:
 3. **Follow existing** code style and patterns
 4. **Update documentation** as needed
 
-### Adding New Modes
+## TO DO
 
-To add a new transcription mode:
-1. Convert the charset file from font-specific encoding to Unicode (FreeMonoTengwar)
-2. Update the mode file to reference the Unicode charset
-3. Add tests to verify transcription accuracy
-4. For phonemic modes, integrate required preprocessing tools (e.g., eSpeak NG)
+The core architecture supports all transcription modes from the original Glaemscribe.
+
+Examples of modes that can be added this way:
+
+- English Tengwar (phonemic, via eSpeak NG)
+- Other Tengwar modes from the original Glaemscribe
+- Cirth (runes), Sarati, and other scripts
 
 ## License
 
