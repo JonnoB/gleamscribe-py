@@ -8,12 +8,35 @@ version = "0.1.0"
 description = "Python implementation of Glaemscribe transcription engine"
 readme = "README.md"
 requires-python = ">=3.8"
+license = {text = "AGPL-3.0-or-later"}
 authors = [
     {name = "Glaemscribe Team"},
+]
+keywords = [
+    "tengwar",
+    "quenya",
+    "sindarin",
+    "elvish",
+    "tolkien",
+    "transcription",
+    "unicode",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Linguistic",
 ]
 dependencies = [
     "pillow>=10.4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/JonnoB/glaemscribe-py"
+Repository = "https://github.com/JonnoB/glaemscribe-py"
+Issues = "https://github.com/JonnoB/glaemscribe-py/issues"
+Documentation = "https://github.com/JonnoB/glaemscribe-py#readme"
 
 [project.optional-dependencies]
 dev = ["pytest>=6.0", "pytest-cov>=2.0", "black", "mypy", "flake8"]
@@ -25,7 +48,8 @@ where = ["src"]
 glaemscribe = [
     "resources/modes/*.glaem",
     "resources/charsets/*.cst",
-    "fonts/*.ttf"
+    "fonts/*.ttf",
+    "fonts/*.otf"
 ]
 
 [tool.pytest.ini_options]
