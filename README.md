@@ -55,9 +55,13 @@ print(modes)  # ['quenya', 'sindarin', 'english', ...]
 ```
 
 Rendered outputs using the default fonts look like this:
-Quenya example text rendered to Tengwar
+
+Quenya example text rendered to Tengwar using FreeMonoTengwar font
+
 ![Quenya example text rendered to Tengwar](docs/images/quenya_text.png)
-Sindarin example text rendered to Tengwar
+
+Sindarin example text rendered to Tengwar using AlcarinTengwar-Bold font
+
 ![Sindarin example text rendered to Tengwar](docs/images/sindarin_text.png)
 
 **Mode aliases** for convenience:
